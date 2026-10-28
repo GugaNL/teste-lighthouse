@@ -1,8 +1,14 @@
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 export default function Layout() {
+  const location = useLocation();
+  // Da listagem, volta para ela com os mesmos filtros; de um formulário,
+  // herda o destino de volta que ele já tinha.
+  const voltarPara =
+    location.pathname === '/' ? `${location.pathname}${location.search}` : (location.state?.voltarPara ?? '/');
+
   return (
     <div className="app">
       <a href="#conteudo" className="pular-para-conteudo">
@@ -24,7 +30,7 @@ export default function Layout() {
             <a href={`${API_URL}/docs`} className="topo__link" target="_blank" rel="noreferrer">
               API
             </a>
-            <Link to="/produtos/novo" className="botao botao--primario botao--pequeno">
+            <Link to="/produtos/novo" state={{ voltarPara }} className="botao botao--primario botao--pequeno">
               + Novo produto
             </Link>
           </nav>

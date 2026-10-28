@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * Avisos rápidos de sucesso/erro ("Produto criado", "Não foi possível excluir").
@@ -13,9 +13,20 @@ const DURACAO_MS = 4500;
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const proximoId = useRef(0);
+  const timers = useRef(new Map());
 
   const fechar = useCallback((id) => {
+    clearTimeout(timers.current.get(id));
+    timers.current.delete(id);
     setToasts((lista) => lista.filter((t) => t.id !== id));
+  }, []);
+
+  useEffect(() => {
+    const pendentes = timers.current;
+    return () => {
+      pendentes.forEach(clearTimeout);
+      pendentes.clear();
+    };
   }, []);
 
   const mostrar = useCallback(
@@ -23,7 +34,7 @@ export function ToastProvider({ children }) {
       proximoId.current += 1;
       const id = proximoId.current;
       setToasts((lista) => [...lista.slice(-3), { id, tipo, mensagem }]);
-      setTimeout(() => fechar(id), DURACAO_MS);
+      timers.current.set(id, setTimeout(() => fechar(id), DURACAO_MS));
     },
     [fechar]
   );

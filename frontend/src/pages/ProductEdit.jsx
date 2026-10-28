@@ -104,7 +104,7 @@ export default function ProductEdit() {
   const avisoConflito = emConflito ? (
     <div className="alerta alerta--aviso" role="alert">
       <p>
-        <strong>Conflito de edição.</strong> {conflito.message}
+        <strong>Conflito de edição.</strong> {conflito.message} Recarregar descarta o que você digitou aqui.
       </p>
       <div className="alerta__acoes">
         <button type="button" className="botao botao--fantasma botao--pequeno" onClick={recarregar} disabled={sobrescrevendo}>

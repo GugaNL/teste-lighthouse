@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createMemoryRouter, RouterProvider, useNavigate } from 'react-router-dom';
 import ProductForm from '../components/ProductForm';
 import { ApiError } from '../services/api';
 
@@ -14,11 +15,36 @@ const produto = {
   version: 1,
 };
 
+// Como nas páginas, cancelar navega para a listagem — é a navegação que o
+// formulário bloqueia quando há alterações pendentes.
+function FormularioNaRota({ onCancel, ...props }) {
+  const navigate = useNavigate();
+  return (
+    <ProductForm
+      {...props}
+      onCancel={() => {
+        onCancel();
+        navigate('/');
+      }}
+    />
+  );
+}
+
 const renderizar = (props = {}) => {
   const onSubmit = props.onSubmit ?? vi.fn().mockResolvedValue(undefined);
-  const onCancel = props.onCancel ?? vi.fn();
-  render(<ProductForm onSubmit={onSubmit} onCancel={onCancel} submitLabel="Salvar" {...props} />);
-  return { onSubmit, onCancel, user: userEvent.setup() };
+  const onCancel = vi.fn();
+  const router = createMemoryRouter(
+    [
+      { path: '/', element: <p>Listagem</p> },
+      {
+        path: '/produtos/novo',
+        element: <FormularioNaRota submitLabel="Salvar" {...props} onSubmit={onSubmit} onCancel={onCancel} />,
+      },
+    ],
+    { initialEntries: ['/', '/produtos/novo'], initialIndex: 1 }
+  );
+  render(<RouterProvider router={router} />);
+  return { onSubmit, onCancel, router, user: userEvent.setup() };
 };
 
 // Intl separa o símbolo do valor com espaço não separável (U+00A0).
@@ -129,17 +155,50 @@ describe('ProductForm — o mesmo formulário para criar e editar', () => {
     const { onCancel, user } = renderizar({ initialProduct: produto });
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(onCancel).toHaveBeenCalled();
+    expect(await screen.findByText('Listagem')).toBeInTheDocument();
   });
 
   it('cancelar com alterações pede confirmação antes de descartar', async () => {
-    const { onCancel, user } = renderizar({ initialProduct: produto });
+    const { user } = renderizar({ initialProduct: produto });
     await user.type(campo('Nome'), ' X');
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
 
-    expect(screen.getByRole('alertdialog', { name: 'Descartar alterações?' })).toBeInTheDocument();
-    expect(onCancel).not.toHaveBeenCalled();
+    expect(await screen.findByRole('alertdialog', { name: 'Descartar alterações?' })).toBeInTheDocument();
+    expect(screen.queryByText('Listagem')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Descartar' }));
-    expect(onCancel).toHaveBeenCalled();
+    expect(await screen.findByText('Listagem')).toBeInTheDocument();
+  });
+
+  it('"Continuar editando" fica no formulário com o que foi digitado', async () => {
+    const { user } = renderizar({ initialProduct: produto });
+    await user.type(campo('Nome'), ' X');
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.click(await screen.findByRole('button', { name: 'Continuar editando' }));
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(campo('Nome')).toHaveValue('Fone Bluetooth Pulse X');
+  });
+
+  it('o voltar do navegador com alterações também pede confirmação', async () => {
+    const { router, user } = renderizar({ initialProduct: produto });
+    await user.type(campo('Nome'), ' X');
+    // Tira o foco do campo antes: o diálogo move o foco ao abrir, e o blur do
+    // campo cairia fora do act (o bloqueio do POP chega de forma assíncrona).
+    await user.click(document.body);
+    await act(() => router.navigate(-1));
+
+    expect(await screen.findByRole('alertdialog', { name: 'Descartar alterações?' })).toBeInTheDocument();
+    expect(screen.queryByText('Listagem')).not.toBeInTheDocument();
+  });
+
+  it('sair depois de salvar não pede confirmação', async () => {
+    const { router, user } = renderizar({ initialProduct: produto });
+    await user.type(campo('Nome'), ' X');
+    // É assim que as páginas saem depois de salvar (e do "salvar minha versão").
+    await act(() => router.navigate('/', { state: { destaque: produto.id } }));
+
+    expect(await screen.findByText('Listagem')).toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 });

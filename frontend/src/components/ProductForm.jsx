@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useState } from 'react';
+import { useBlocker } from 'react-router-dom';
 import FormField from './FormField';
 import MoneyInput from './MoneyInput';
 import ConfirmDialog from './ConfirmDialog';
@@ -25,6 +26,10 @@ const TODOS_TOCADOS = Object.fromEntries(PRODUCT_FIELDS.map((campo) => [campo, t
  *
  * `onSubmit` deve rejeitar com ApiError para o formulário mostrar o erro;
  * resolver significa que a página assumiu daqui (navegou, abriu um aviso...).
+ *
+ * `onCancel` deve navegar para fora: com alterações pendentes, é o bloqueio de
+ * navegação que pede a confirmação — o mesmo diálogo do "Voltar", dos links do
+ * topo e do botão voltar do navegador.
  */
 export default function ProductForm({
   initialProduct,
@@ -44,12 +49,16 @@ export default function ProductForm({
   const [touched, setTouched] = useState({});
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [confirmandoDescarte, setConfirmandoDescarte] = useState(false);
 
   const alterado = PRODUCT_FIELDS.some(
     (campo) => String(values[campo] ?? '') !== String(valoresIniciais[campo] ?? '')
   );
   useUnsavedChangesWarning(alterado && !submitting);
+  // Navegação com `destaque` é a saída depois de salvar (inclusive o "salvar
+  // minha versão" do conflito, que acontece fora do formulário): nada se perde.
+  const navegacao = useBlocker(
+    ({ nextLocation }) => alterado && !submitting && !nextLocation.state?.destaque
+  );
 
   // O foco vai para o primeiro campo inválido — mas só depois que o fieldset
   // volta a ficar habilitado: input desabilitado (durante o envio) não recebe foco.
@@ -108,8 +117,6 @@ export default function ProductForm({
       setSubmitting(false);
     }
   };
-
-  const cancelar = () => (alterado ? setConfirmandoDescarte(true) : onCancel());
 
   const errosVisiveis = Object.entries(errors).filter(([campo, erro]) => erro && touched[campo]);
   const erroDo = (campo) => (touched[campo] ? errors[campo] : '');
@@ -227,7 +234,7 @@ export default function ProductForm({
       </fieldset>
 
       <div className="formulario__acoes">
-        <button type="button" className="botao botao--fantasma" onClick={cancelar} disabled={submitting}>
+        <button type="button" className="botao botao--fantasma" onClick={onCancel} disabled={submitting}>
           Cancelar
         </button>
         <button type="submit" className="botao botao--primario" disabled={submitting}>
@@ -243,15 +250,12 @@ export default function ProductForm({
       </div>
 
       <ConfirmDialog
-        open={confirmandoDescarte}
+        open={navegacao.state === 'blocked'}
         title="Descartar alterações?"
         confirmLabel="Descartar"
         cancelLabel="Continuar editando"
-        onConfirm={() => {
-          setConfirmandoDescarte(false);
-          onCancel();
-        }}
-        onCancel={() => setConfirmandoDescarte(false)}
+        onConfirm={() => navegacao.proceed?.()}
+        onCancel={() => navegacao.reset?.()}
       >
         <p>As alterações feitas neste formulário ainda não foram salvas e serão perdidas.</p>
       </ConfirmDialog>

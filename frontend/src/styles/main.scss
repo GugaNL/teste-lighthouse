@@ -2,8 +2,9 @@
 //
 // Paleta institucional Codex: a mesma base de tokens do Painel RCA, do Painel
 // BI e do Codex Bolso. Os papéis (--fundo, --primaria, --texto…) são nomeados
-// pela função, não pelo degrau da escala. Sem tema escuro — nenhum painel
-// Codex de referência tem um.
+// pela função, não pelo degrau da escala. O tema escuro segue o sistema
+// operacional e só redefine esses papéis — nenhuma regra abaixo usa cor fixa
+// fora do topo, que é escuro nos dois temas.
 //
 // Interface de operação: densa, sóbria, números tabulares. Estado sempre vem
 // com texto ao lado da cor (selo "Esgotado", não só vermelho).
@@ -34,12 +35,69 @@
   --atencao: #a4620a;
   --atencao-claro: #fdf1e1;
 
+  --sobre-cor: #ffffff; // texto em botão de cor sólida
+  --critico-escuro: #8f1e18; // hover do botão de perigo
+  --alerta-erro-borda: #f1c2bf;
+  --alerta-erro-texto: #7d1b15;
+  --alerta-aviso-borda: #f2d3a6;
+  --alerta-aviso-texto: #6e4107;
+  --linha-hover: #fbfcfd;
+  --veu: rgba(11, 43, 64, 0.45); // fundo atrás do diálogo
+  --toast-fundo: var(--texto);
+
   --raio: 8px;
   --raio-pequeno: 4px;
   --sombra: 0 1px 2px rgba(16, 24, 32, 0.06), 0 1px 3px rgba(16, 24, 32, 0.08);
   --sombra-alta: 0 12px 32px rgba(16, 24, 32, 0.18);
   --foco: 0 0 0 3px rgba(20, 80, 122, 0.28);
+  --foco-critico: 0 0 0 3px rgba(179, 38, 30, 0.2);
   --largura-max: 1200px;
+}
+
+// Tema escuro. Os tons "claros" viram fundos escuros tingidos e os "escuros"
+// viram o tom de mais ênfase (mais claro), para os pares texto/fundo continuarem
+// funcionando. Botões de cor sólida passam a ter texto escuro.
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --fundo: #0f1419;
+    --superficie: #161d24;
+    --superficie-2: #1e2730;
+    --borda: #2a343e;
+    --borda-forte: #3d4955;
+
+    --texto: #e6ebf0;
+    --texto-2: #b8c2cc;
+    --texto-3: #8b98a5;
+
+    --primaria: #6cb4ea;
+    --primaria-clara: #16314a;
+    --primaria-escura: #9ccdf2;
+    --topo-fundo: #0a1f2e;
+
+    --sucesso: #6fcf97;
+    --sucesso-claro: #12301f;
+    --critico: #f2867f;
+    --critico-claro: #3a1614;
+    --atencao: #f0b357;
+    --atencao-claro: #36260c;
+
+    --sobre-cor: #0b1620;
+    --critico-escuro: #f5a7a2;
+    --alerta-erro-borda: #6b2420;
+    --alerta-erro-texto: #f8c4c0;
+    --alerta-aviso-borda: #6b4a14;
+    --alerta-aviso-texto: #f6d6a3;
+    --linha-hover: #1a222a;
+    --veu: rgba(0, 0, 0, 0.6);
+    --toast-fundo: #2a343e;
+
+    --sombra: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.5);
+    --sombra-alta: 0 12px 32px rgba(0, 0, 0, 0.6);
+    --foco: 0 0 0 3px rgba(108, 180, 234, 0.4);
+    --foco-critico: 0 0 0 3px rgba(242, 134, 127, 0.35);
+  }
 }
 
 * {
@@ -142,7 +200,7 @@ textarea {
   &--primario {
     background: var(--primaria);
     border-color: var(--primaria);
-    color: #ffffff;
+    color: var(--sobre-cor);
 
     &:hover {
       background: var(--primaria-escura);
@@ -161,10 +219,10 @@ textarea {
   &--perigo {
     background: var(--critico);
     border-color: var(--critico);
-    color: #ffffff;
+    color: var(--sobre-cor);
 
     &:hover {
-      background: #8f1e18;
+      background: var(--critico-escuro);
     }
   }
 
@@ -214,8 +272,8 @@ textarea {
   flex-shrink: 0;
 
   &--claro {
-    border-color: rgba(255, 255, 255, 0.4);
-    border-top-color: #ffffff;
+    border-color: color-mix(in srgb, currentColor 40%, transparent);
+    border-top-color: currentColor;
   }
 }
 
@@ -301,7 +359,7 @@ textarea {
     color: var(--topo-fundo);
 
     &:hover {
-      background: var(--primaria-clara);
+      background: #e3eef6;
     }
   }
 }
@@ -556,7 +614,7 @@ input[type='checkbox'] {
   }
 
   tbody tr:hover td {
-    background: #fbfcfd;
+    background: var(--linha-hover);
   }
 
   tr.is-destaque td {
@@ -760,14 +818,14 @@ input[type='checkbox'] {
 
   &--erro {
     background: var(--critico-claro);
-    border-color: #f1c2bf;
-    color: #7d1b15;
+    border-color: var(--alerta-erro-borda);
+    color: var(--alerta-erro-texto);
   }
 
   &--aviso {
     background: var(--atencao-claro);
-    border-color: #f2d3a6;
-    color: #6e4107;
+    border-color: var(--alerta-aviso-borda);
+    color: var(--alerta-aviso-texto);
   }
 
   &__acoes {
@@ -859,7 +917,7 @@ input[type='checkbox'] {
       border-color: var(--critico);
 
       &:focus {
-        box-shadow: 0 0 0 3px rgba(179, 38, 30, 0.2);
+        box-shadow: var(--foco-critico);
       }
     }
   }
@@ -873,7 +931,7 @@ input[type='checkbox'] {
   display: grid;
   place-items: center;
   padding: 16px;
-  background: rgba(11, 43, 64, 0.45);
+  background: var(--veu);
   animation: aparecer 0.15s ease-out;
 
   &__caixa {
@@ -928,7 +986,7 @@ input[type='checkbox'] {
   gap: 10px;
   padding: 12px 12px 12px 14px;
   border-radius: var(--raio);
-  background: var(--texto);
+  background: var(--toast-fundo);
   color: #ffffff;
   box-shadow: var(--sombra-alta);
   border-left: 4px solid var(--primaria);
