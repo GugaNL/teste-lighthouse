@@ -1,0 +1,49 @@
+{
+  "name": "codex-catalogo-backend",
+  "version": "1.0.0",
+  "description": "Codex Catálogo — API REST de gerenciamento de catálogo de produtos",
+  "main": "src/server.js",
+  "private": true,
+  "scripts": {
+    "db": "node scripts/db.js",
+    "seed": "node scripts/seed.js",
+    "dev": "nodemon src/server.js --ignore __tests__",
+    "start": "node src/server.js",
+    "test": "jest --runInBand --detectOpenHandles",
+    "test:coverage": "jest --runInBand --coverage",
+    "test:api": "npx -y newman@6 run docs/postman_collection.json"
+  },
+  "author": "Codex",
+  "license": "ISC",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "helmet": "^8.0.0",
+    "joi": "^17.13.3",
+    "mongoose": "^8.9.5",
+    "swagger-ui-express": "^5.0.1",
+    "yaml": "^2.6.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "mongodb-memory-server": "^10.1.4",
+    "nodemon": "^3.1.9",
+    "supertest": "^7.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/server.js"
+    ],
+    "maxWorkers": 1,
+    "testTimeout": 60000
+  }
+}

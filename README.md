@@ -1,0 +1,408 @@
+# Codex Catálogo — Gerenciamento de Catálogo de Produtos
+
+Aplicação fullstack para o vendedor gerenciar o catálogo de produtos: **API REST em Node.js (Express 5) + MongoDB (Mongoose)** e **frontend em React 18 (Vite)**.
+
+Solução do desafio técnico [`occ-react-node`](https://gitlab.com/lighthouseit/testes-tecnicos/occ-react-node), seguindo o padrão de arquitetura dos projetos Codex.
+
+![Listagem de produtos](docs/screenshots/listagem.jpg)
+
+| Validação no formulário | Confirmação de exclusão | Erro de conexão |
+| :---: | :---: | :---: |
+| ![Validação](docs/screenshots/validacao.jpg) | ![Confirmação](docs/screenshots/confirmar-exclusao.jpg) | ![Erro](docs/screenshots/erro.jpg) |
+
+---
+
+## Sumário
+
+1. [Checklist do desafio](#1-checklist-do-desafio)
+2. [Guia de execução](#2-guia-de-execução)
+3. [Variáveis de ambiente](#3-variáveis-de-ambiente)
+4. [Documentação da API](#4-documentação-da-api)
+5. [Decisões técnicas](#5-decisões-técnicas)
+6. [Estrutura de pastas](#6-estrutura-de-pastas)
+7. [Testes](#7-testes)
+8. [Além do pedido](#8-além-do-pedido)
+9. [Limitações e próximos passos](#9-limitações-e-próximos-passos)
+
+---
+
+## 1. Checklist do desafio
+
+| Requisito | Status | Onde |
+| :--- | :---: | :--- |
+| **Backend** com Express, Fastify ou NestJS | ✅ | Express 5 — [`backend/src/app.js`](backend/src/app.js) |
+| `GET /products` lista todos | ✅ | [`product.router.js`](backend/src/routes/product.router.js) → [`ProductController.getAll`](backend/src/app/controller/ProductController.js) |
+| `GET /products/:id` retorna por ID | ✅ | `ProductController.getById` (404 se não existe, 400 se o ID é inválido) |
+| `POST /products` cria | ✅ | `ProductController.create` (201 + `Location`) |
+| `PUT /products/:id` atualiza | ✅ | `ProductController.update` (200 / 400 / 404 / 412) |
+| `DELETE /products/:id` remove | ✅ | `ProductController.remove` (204 / 404) |
+| `name` obrigatório, 3 a 120 caracteres | ✅ | Joi em [`validation/product.js`](backend/src/app/validation/product.js) + schema Mongoose + testes |
+| `price` número positivo maior que 0 | ✅ | idem (também recusa texto, `null` e mais de 2 casas decimais) |
+| `stock` inteiro ≥ 0 | ✅ | idem (recusa fracionado e negativo) |
+| `category` obrigatória e não vazia | ✅ | idem (recusa vazio e só espaços) |
+| Banco **MongoDB via Mongoose** | ✅ | [`ProductSchema.js`](backend/src/app/schema/ProductSchema.js) |
+| **Frontend** React: listagem consumindo a API | ✅ | [`pages/ProductList.jsx`](frontend/src/pages/ProductList.jsx) |
+| Formulário de criação **e** edição (Nome, Descrição, Preço, Estoque, Categoria) | ✅ | **Um único** [`ProductForm`](frontend/src/components/ProductForm.jsx) usado por [`ProductCreate`](frontend/src/pages/ProductCreate.jsx) e [`ProductEdit`](frontend/src/pages/ProductEdit.jsx) |
+| Exclusão com confirmação prévia | ✅ | [`ConfirmDialog`](frontend/src/components/ConfirmDialog.jsx) acessível (foco no "Cancelar", Esc, Tab preso) |
+| Feedback de **Loading** | ✅ | esqueleto na primeira carga, lista esmaecida ao recarregar, botões "Salvando…/Excluindo…", [`Estado.jsx`](frontend/src/components/Estado.jsx) |
+| Feedback de **Erro** | ✅ | erro por campo, alerta no formulário, bloco "Tentar de novo", erro dentro do diálogo e toasts |
+| Organização: Rotas, Controllers, Lógica separados | ✅ | `routes → validation → controller → service → repository → schema` + `rules/` puras |
+| HTTP centralizado, `try/catch`, estado sincronizado | ✅ | [`services/api.js`](frontend/src/services/api.js) + [`productService.js`](frontend/src/services/productService.js) + [`useRequest`](frontend/src/hooks/useRequest.js) |
+| Status HTTP corretos e mensagens úteis | ✅ | 200, 201, 204, 400, 404, 412, 413, 500 — [tabela](#códigos-de-status) |
+| Reutilização (mesmo formulário para Create/Edit) | ✅ | `ProductForm`, `FormField`, `ConfirmDialog`, `Estado`, `useRequest` |
+| README: guia de execução | ✅ | [seção 2](#2-guia-de-execução) |
+| README: decisões técnicas | ✅ | [seção 5](#5-decisões-técnicas) |
+| `.env.example` | ✅ | [`backend/.env.example`](backend/.env.example), [`frontend/.env.example`](frontend/.env.example), [`.env.example`](.env.example) (Docker) |
+| README: documentação da API | ✅ | [seção 4](#4-documentação-da-api) + Swagger em `/docs` + [coleção Postman](backend/docs/postman_collection.json) |
+
+---
+
+## 2. Guia de execução
+
+> Pré-requisito: **Node.js 22+** (ou só **Docker**, na opção A).
+
+### Opção A — Docker (um comando)
+
+```bash
+docker compose up --build
+```
+
+- Aplicação (site + API): **http://localhost:4008**
+- Documentação interativa da API: **http://localhost:4008/docs**
+
+Sobe o MongoDB e a aplicação num container só (o backend serve a API e o build do React). Na primeira subida o catálogo de demonstração é criado automaticamente.
+
+### Opção B — Local, sem instalar MongoDB
+
+```bash
+npm run setup   # instala raiz, backend e frontend e cria os .env a partir dos .env.example
+npm run dev     # sobe banco, API e frontend juntos
+```
+
+| Serviço | Endereço |
+| :--- | :--- |
+| Frontend (Vite) | **http://localhost:5181** |
+| API | http://localhost:4008 |
+| Swagger | http://localhost:4008/docs |
+| MongoDB local | `mongodb://127.0.0.1:27022` |
+
+O banco de desenvolvimento roda via [`mongodb-memory-server`](https://github.com/typegoose/mongodb-memory-server) com os dados persistidos em `backend/.localdb` — não é preciso instalar o MongoDB. Na **primeira** execução ele baixa o binário do `mongod` (~70 MB). A API cria o catálogo de demonstração se o banco estiver vazio; para recriá-lo do zero: `npm run seed`.
+
+### Opção C — Com um MongoDB seu (local, Atlas, Docker)
+
+Aponte `MONGO_URL` em `backend/.env` para o seu banco e rode as partes separadamente:
+
+```bash
+npm --prefix backend run dev
+```
+
+```bash
+npm --prefix frontend run dev
+```
+
+### Scripts úteis (na raiz)
+
+| Script | O que faz |
+| :--- | :--- |
+| `npm run setup` | Instala tudo e cria os `.env` (não sobrescreve existentes) |
+| `npm run dev` | Banco + API + frontend com recarga automática |
+| `npm run seed` | **Apaga** os produtos e recria o catálogo de demonstração |
+| `npm test` | Testes do backend (Jest) e do frontend (Vitest) |
+| `npm run test:api` | Roda a coleção Postman (Newman) contra a API no ar |
+| `npm run build` | Build de produção do frontend |
+| `npm start` | API em modo produção (serve o build do frontend, se existir) |
+
+---
+
+## 3. Variáveis de ambiente
+
+### Backend — [`backend/.env.example`](backend/.env.example)
+
+| Variável | Padrão | Descrição |
+| :--- | :--- | :--- |
+| `PORT` | `4008` | Porta HTTP da API |
+| `NODE_ENV` | `development` | `development`, `production` ou `test` |
+| `MONGO_URL` | `mongodb://127.0.0.1:27022/codex-catalogo` | Conexão do MongoDB. **Obrigatória em produção** (a API não sobe sem ela) |
+| `CORS_ORIGIN` | `*` | Origens liberadas, separadas por vírgula. Só importa com o frontend em outro domínio |
+| `SEED_ON_START` | `true` | Cria o catálogo de demonstração na subida **se a coleção estiver vazia** (nunca apaga nada) |
+
+### Frontend — [`frontend/.env.example`](frontend/.env.example)
+
+| Variável | Padrão | Descrição |
+| :--- | :--- | :--- |
+| `VITE_API_URL` | *(vazio)* | URL base da API. Vazio = mesmo host do site (proxy do Vite em dev; o backend serve o site em produção) |
+| `VITE_PROXY_TARGET` | `http://localhost:4008` | Só no servidor de dev: para onde o Vite encaminha `/products`, `/categories`, `/docs` e `/health` |
+
+### Docker Compose — [`.env.example`](.env.example)
+
+| Variável | Padrão | Descrição |
+| :--- | :--- | :--- |
+| `APP_PORT` | `4008` | Porta do host onde a aplicação fica exposta |
+| `CORS_ORIGIN` | `*` | Repassada para a API |
+| `SEED_ON_START` | `true` | Repassada para a API |
+
+---
+
+## 4. Documentação da API
+
+- **Swagger UI:** `http://localhost:4008/docs` (gerado a partir do contrato [`backend/docs/openapi.yaml`](backend/docs/openapi.yaml), escrito antes do código)
+- **OpenAPI em JSON:** `http://localhost:4008/docs/openapi.json`
+- **Coleção Postman** com testes automáticos de todo o fluxo: [`backend/docs/postman_collection.json`](backend/docs/postman_collection.json) — importe no Postman ou rode `npm run test:api`
+
+### Endpoints
+
+| Método | Rota | Descrição | Sucesso | Erros |
+| :--- | :--- | :--- | :---: | :--- |
+| `GET` | `/products` | Lista todos os produtos | `200` | `400` (parâmetro inválido) |
+| `GET` | `/products/:id` | Retorna um produto por ID | `200` | `400`, `404` |
+| `POST` | `/products` | Cria um produto | `201` | `400` |
+| `PUT` | `/products/:id` | Atualiza um produto (substituição completa) | `200` | `400`, `404`, `412` |
+| `DELETE` | `/products/:id` | Remove um produto | `204` | `400`, `404` |
+| `GET` | `/categories` | Resumo por categoria *(extra)* | `200` | — |
+| `GET` | `/health` | Health check *(extra)* | `200` | — |
+
+As rotas ficam **exatamente** como no enunciado (`/products`, sem prefixo `/api`).
+
+### Produto
+
+```json
+{
+  "id": "6720c1f4a2b9d43c8e1f0a11",
+  "name": "Fone Bluetooth Pulse ANC",
+  "description": "Cancelamento de ruído ativo e 30h de bateria.",
+  "price": 349.9,
+  "stock": 25,
+  "category": "Eletrônicos",
+  "inStock": true,
+  "version": 1,
+  "createdAt": "2026-10-28T18:51:05.343Z",
+  "updatedAt": "2026-10-28T18:51:05.343Z"
+}
+```
+
+| Campo | Entrada | Regra |
+| :--- | :---: | :--- |
+| `name` | obrigatório | texto de **3 a 120** caracteres (contados sem os espaços das pontas) |
+| `description` | opcional | texto até 1000 caracteres |
+| `price` | obrigatório | **número > 0**, no máximo 2 casas decimais, até 999.999.999,99 |
+| `stock` | obrigatório | **inteiro ≥ 0**, até 999.999.999 |
+| `category` | obrigatório | texto **não vazio**, até 60 caracteres |
+| `id`, `inStock`, `version`, `createdAt`, `updatedAt` | — | gerados pela API (se enviados, são ignorados) |
+
+Números precisam chegar como **número JSON**: `"10.50"` (texto) é recusado com mensagem clara, em vez de convertido em silêncio.
+
+### Parâmetros opcionais de `GET /products`
+
+Sem parâmetros, a rota devolve **todos** os produtos (mais recentes primeiro), como pede o desafio. Os parâmetros são opcionais e combináveis:
+
+| Parâmetro | Exemplo | Efeito |
+| :--- | :--- | :--- |
+| `search` | `?search=fone` | Busca em nome, descrição e categoria (sem diferenciar maiúsculas) |
+| `category` | `?category=eletrônicos` | Categoria exata, sem diferenciar maiúsculas |
+| `inStock` | `?inStock=false` | `true` só com estoque, `false` só esgotados |
+| `sort` | `?sort=-price` | `name`, `price`, `stock`, `createdAt`, `updatedAt`; prefixo `-` inverte |
+| `page`, `limit` | `?page=2&limit=10` | Paginação (limit de 1 a 100) |
+
+A resposta é **sempre uma lista**; o total que atende aos filtros vem no cabeçalho **`X-Total-Count`** — paginar não muda o formato do corpo.
+
+### Concorrência otimista (`ETag` / `If-Match`) — opcional
+
+`GET /products/:id`, `POST` e `PUT` devolvem `ETag: "<versão>"`. Enviando esse valor em `If-Match` no `PUT`, a API só grava se ninguém tiver alterado o produto nesse meio-tempo; caso contrário responde **`412 Precondition Failed`** com a `currentVersion`. Sem o cabeçalho, a última gravação vence (comportamento REST padrão). O frontend usa isso para avisar o vendedor em vez de sobrescrever a alteração de outra pessoa.
+
+### Formato de erro
+
+Todo erro tem o mesmo corpo, com mensagens em português prontas para a tela:
+
+```json
+{
+  "statusCode": 400,
+  "error": "Bad Request",
+  "message": "Verifique os campos destacados.",
+  "details": [
+    { "field": "name", "message": "Nome deve ter pelo menos 3 caracteres" },
+    { "field": "price", "message": "Preço deve ser maior que zero" }
+  ]
+}
+```
+
+`details` aparece nos erros de validação (um item por campo, **todos de uma vez**). Erros inesperados respondem `500` com mensagem genérica — o detalhe técnico fica só no log do servidor.
+
+### Códigos de status
+
+| Código | Quando |
+| :---: | :--- |
+| `200` | Leitura ou atualização bem-sucedida |
+| `201` | Produto criado (com cabeçalho `Location: /products/:id`) |
+| `204` | Produto removido (sem corpo) |
+| `400` | Corpo inválido, JSON malformado, ID fora do formato, parâmetro de listagem inválido ou `If-Match` ilegível |
+| `404` | Produto inexistente, ou rota desconhecida da API |
+| `412` | `If-Match` com versão desatualizada |
+| `413` | Corpo maior que 100 KB |
+| `500` | Erro inesperado |
+
+### Exemplos com `curl`
+
+```bash
+curl -i -X POST http://localhost:4008/products -H "Content-Type: application/json" -d '{"name":"Fone Bluetooth","price":349.9,"stock":25,"category":"Eletrônicos"}'
+```
+
+```bash
+curl -i "http://localhost:4008/products?search=fone&sort=-price&page=1&limit=10"
+```
+
+```bash
+curl -i -X PUT http://localhost:4008/products/<id> -H "Content-Type: application/json" -H 'If-Match: "1"' -d '{"name":"Fone Bluetooth 2","price":299.9,"stock":10,"category":"Eletrônicos"}'
+```
+
+```bash
+curl -i -X DELETE http://localhost:4008/products/<id>
+```
+
+---
+
+## 5. Decisões técnicas
+
+### Stack
+
+| Camada | Escolha | Por quê |
+| :--- | :--- | :--- |
+| API | **Express 5** | Padrão dos projetos Codex; o Express 5 já propaga erro de handler assíncrono e tem roteamento mais estrito |
+| Banco | **MongoDB + Mongoose 8** | Opção permitida pelo desafio e padrão Codex; collation `pt` resolve ordenação e comparação sem diferenciar maiúsculas |
+| Validação | **Joi** | Esquema declarativo, todas as mensagens em um lugar, conversão/limpeza do corpo (`stripUnknown`) |
+| Frontend | **React 18 + Vite + React Router 6 + axios + Sass** | Padrão Codex; nenhuma biblioteca de estado — o problema não pede |
+| Testes | **Jest + Supertest + mongodb-memory-server** / **Vitest + Testing Library** | Testes de integração com MongoDB real em memória, sem mocks de banco |
+| Entrega | **Docker multi-stage + Compose** | Um container serve API e site: um serviço, um domínio, sem CORS |
+
+### Arquitetura do backend
+
+```text
+HTTP ─▶ routes ─▶ validation ─▶ controller ─▶ service ─▶ repository ─▶ schema (Mongoose) ─▶ MongoDB
+         │          (Joi, ID)     (HTTP ↔      (regra de    (consultas)
+         │                         domínio)     negócio)
+         └─ docs (Swagger)                         │
+                                                   └─▶ rules/  funções puras, sem banco nem Express
+```
+
+- **routes** só ligam URL → middlewares → controller.
+- **validation** responde `400` antes de qualquer acesso ao banco (corpo, query e formato do ID).
+- **controller** é fino: traduz HTTP (status, `Location`, `ETag`, `X-Total-Count`) e tem `try/catch` em cada método (padrão Codex). Erros de domínio (`NotFound`, `PreconditionFailed`…) carregam o próprio `statusCode`.
+- **service** concentra a regra: normalização do texto, reaproveitamento da grafia da categoria, decisão entre `404` e `412`.
+- **repository** isola o Mongoose (filtros, collation, paginação, agregação).
+- **rules/** são funções puras (limites, normalização, ordenação, parsing de `If-Match`) — testadas sem banco e lidas pela validação, pelo schema e pelo service, então um limite muda num lugar só.
+
+### Validação em três camadas, com papéis diferentes
+
+1. **Frontend** ([`productRules.js`](frontend/src/utils/productRules.js)) — UX: o erro aparece ao sair do campo, sem ida ao servidor. Espelha as mensagens da API.
+2. **Joi na API** — o contrato: é a autoridade. Devolve **todos** os campos inválidos de uma vez, com `field` e `message`.
+3. **Schema Mongoose** — última linha de defesa: nenhum caminho que escreva no banco (seed, script, código futuro) grava produto inválido.
+
+Quando a API recusa algo que passou no cliente, o formulário mostra a mensagem **embaixo do campo certo**, igual à validação local.
+
+### Decisões de domínio
+
+- **`PUT` é substituição completa** — por isso o mesmo esquema Joi serve para criar e atualizar, e o **mesmo formulário** serve para as duas telas.
+- **Dinheiro com no máximo 2 casas decimais.** `10.999` é recusado. No frontend, o campo de preço é estilo "caixa eletrônico" (dígitos entram pelos centavos: `1999` → `R$ 19,99`), evitando os problemas de vírgula/ponto e notação científica do `<input type="number">`.
+- **Categoria é texto livre, mas não fragmenta**: se "Eletrônicos" já existe, criar com "ELETRÔNICOS" reaproveita a grafia existente. Na edição, o próprio produto fica fora dessa busca para poder corrigir a capitalização de uma categoria que só ele usa.
+- **Espaços normalizados**: `"  Mouse   sem fio "` vira `"Mouse sem fio"`; o mínimo de 3 caracteres conta sem os espaços das pontas.
+- **ID inválido é `400`, ID inexistente é `404`.** Um ID fora do formato nunca vai existir, e responder antes de ir ao banco evita expor um `CastError`.
+- **Concorrência otimista** com versão própria (o `__v` do Mongoose só incrementa quando um array muda). Checagem e escrita são **uma operação atômica** (`findOneAndUpdate` filtrando pela versão).
+- **Rotas exatamente como no enunciado** (`/products`); as rotas do site ficam em português (`/produtos/novo`) para o mesmo servidor entregar API e SPA sem colisão. Uma sub-rota desconhecida da API responde `404` em JSON, nunca o HTML do site.
+- **Corpo de erro** `{ statusCode, error, message, details }`. O padrão Codex usa `{ description, name }`, mas aqui `name` é campo do produto — repetir a chave na raiz do erro confundiria quem consome a API.
+
+### Frontend
+
+- **Chamadas HTTP centralizadas**: só [`services/productService.js`](frontend/src/services/productService.js) conhece as rotas; páginas nunca importam o axios. O [`services/api.js`](frontend/src/services/api.js) converte **qualquer** falha (validação, 404, 412, rede, timeout, cancelamento) num `ApiError` com mensagem pronta e `fieldErrors` por campo.
+- **[`useRequest`](frontend/src/hooks/useRequest.js)**: um hook para todas as leituras, com `try/catch`, `loading`/`error`/`data`, `reload()` e **cancelamento** da requisição anterior via `AbortController` (digitar na busca não deixa uma resposta velha sobrescrever a nova). Ao recarregar, os dados anteriores ficam na tela esmaecidos em vez de piscar um esqueleto.
+- **Sincronização do estado**: depois de criar, editar ou excluir, lista **e** indicadores são recarregados do servidor (fonte da verdade); o item salvo volta destacado na lista. Excluir o último item de uma página volta para a página anterior; excluir algo que outra pessoa já excluiu (`404`) é tratado como sucesso.
+- **Estado na URL**: busca, filtro, ordenação e página ficam na query string (`/?busca=fone&ordem=-price`) — recarregar, voltar no navegador ou compartilhar o link mostra a mesma lista.
+- **Sem Redux/React Query**: o estado é local de cada tela e o servidor é a fonte da verdade; um hook de 50 linhas cobre o caso e deixa explícito o tratamento de erro que o desafio avalia.
+- **Acessibilidade**: rótulos ligados aos campos, `aria-invalid` + `aria-describedby` nos erros, foco no primeiro campo inválido, diálogo com foco no botão seguro e Tab preso, toasts em região `aria-live`, link "pular para o conteúdo", estado de estoque com texto (não só cor) e `prefers-reduced-motion`.
+- **Visual**: paleta institucional Codex (mesmos tokens do Painel BI/RCA/Bolso), fonte Inter, números tabulares; no celular a tabela vira cartões só com CSS.
+
+---
+
+## 6. Estrutura de pastas
+
+```text
+.
+├── backend/
+│   ├── docs/
+│   │   ├── openapi.yaml              # contrato da API (servido em /docs)
+│   │   └── postman_collection.json   # fluxo completo com testes (Newman)
+│   ├── scripts/                      # db local (mongodb-memory-server) e seed
+│   ├── __tests__/                    # Jest + Supertest (MongoDB em memória)
+│   └── src/
+│       ├── app.js                    # middlewares, rotas, 404, SPA, erros
+│       ├── server.js
+│       ├── routes/                   # product, category, docs
+│       ├── infra/                    # conexão Mongo (com nova tentativa) e seed
+│       └── app/
+│           ├── config/               # leitura do .env
+│           ├── controller/           # HTTP ↔ service
+│           ├── service/              # regra de negócio
+│           ├── repository/           # acesso ao Mongo (Generic + Product)
+│           ├── schema/               # Mongoose
+│           ├── validation/           # Joi + middleware + ID
+│           ├── rules/                # funções puras do domínio
+│           ├── serialize/            # formato público do produto e dos erros
+│           ├── errors/               # BadRequest, NotFound, PreconditionFailed
+│           └── helpers/              # log de requisições
+├── frontend/
+│   └── src/
+│       ├── services/                 # api.js (axios + ApiError) e productService.js
+│       ├── hooks/                    # useRequest, useDebouncedValue, useUnsavedChangesWarning
+│       ├── components/               # ProductForm, ProductTable, ConfirmDialog, FormField, MoneyInput…
+│       ├── pages/                    # ProductList, ProductCreate, ProductEdit, NotFound
+│       ├── context/                  # ToastContext
+│       ├── utils/                    # regras do produto, formatação, CSV
+│       ├── styles/                   # main.scss (tokens Codex)
+│       └── __tests__/                # Vitest + Testing Library
+├── docs/screenshots/
+├── Dockerfile                        # multi-stage: build do React + runtime da API
+├── docker-compose.yml                # app + mongo
+├── .github/workflows/ci.yml          # testes + build (GitHub Actions)
+└── .gitlab-ci.yml                    # mesmo pipeline no GitLab
+```
+
+---
+
+## 7. Testes
+
+```bash
+npm test            # backend + frontend
+npm run test:api    # coleção Postman contra a API no ar (npm run dev antes)
+```
+
+| Suíte | Ferramentas | Quantidade | Cobre |
+| :--- | :--- | :---: | :--- |
+| Backend | Jest + Supertest + mongodb-memory-server | **89** | Cada endpoint e status; cada regra de negócio nos limites (2/3/120/121 caracteres, `0`, `0.01`, `-1`, `1.5`, texto, `null`, só espaços); busca, filtros, ordenação com acento, paginação; `If-Match`/`412`; JSON malformado; rota desconhecida; resumo por categoria; funções puras |
+| Frontend | Vitest + Testing Library | **52** | Regras do cliente (mesmos casos da API); `ApiError` para cada tipo de falha; `ProductForm` criando e editando, erro da API no campo certo, estado de envio, descarte com confirmação; `ConfirmDialog` (foco, Esc, Tab, ocupado); `ProductList` com carregando, erro + tentar de novo, vazio, exclusão confirmada/cancelada/falhando e busca com debounce |
+| Contrato | Postman / Newman | **15 req. / 17 asserções** | Fluxo ponta a ponta contra a API real: criar → listar → buscar → atualizar → conflito → remover → 404 |
+
+O CI ([GitHub Actions](.github/workflows/ci.yml) e [GitLab CI](.gitlab-ci.yml)) roda as duas suítes, o build do frontend e o build da imagem Docker.
+
+---
+
+## 8. Além do pedido
+
+- 🔎 **Busca, filtro por categoria, "só esgotados", ordenação e paginação** — no servidor, com o estado na URL.
+- 📊 **Indicadores do catálogo**: produtos, unidades, valor em estoque e esgotados (clicável para filtrar), via `GET /categories`.
+- 🏷️ **Selo de estoque**: "Em estoque", "Estoque baixo" (≤ 5) e "Esgotado".
+- 🔒 **Concorrência otimista** (`ETag`/`If-Match` → `412`), com opção de recarregar ou salvar a sua versão.
+- 💰 **Campo de preço com máscara BRL** e **sugestões de categoria** (datalist com as existentes).
+- 📤 **Exportar CSV** do resultado filtrado (separador `;` e BOM para abrir direto no Excel em português).
+- ⚠️ **Aviso de alterações não salvas** (ao fechar a aba e ao cancelar o formulário).
+- 📚 **Swagger UI** a partir do contrato OpenAPI + **coleção Postman** com testes.
+- 🐳 **Docker** em um comando, com healthcheck, usuário não-root e seed automático.
+- 🧪 **141 testes automatizados** + contrato Newman, e **CI** para GitHub e GitLab.
+- 🛡️ Helmet, limite de corpo (100 KB), regex de busca escapada (sem injeção de padrão), mensagens internas nunca vazam no `500`.
+- ♿ Acessibilidade e layout responsivo (tabela vira cartões no celular).
+
+---
+
+## 9. Limitações e próximos passos
+
+- **Autenticação/autorização** não fazia parte do escopo; o caminho natural seria JWT com papéis (o mesmo padrão `auth` dos outros projetos Codex) protegendo as rotas de escrita.
+- **Exclusão definitiva** (como pedido). Em produção valeria considerar exclusão lógica para auditoria e desfazer.
+- **Busca por regex** atende bem um catálogo de milhares de itens; para volumes maiores, índice de texto ou Atlas Search.
+- **Imagens do produto** e **SKU** ficariam como próximos campos do modelo.

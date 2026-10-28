@@ -1,0 +1,25 @@
+# Mesmo pipeline do GitHub Actions, para quando o repositório estiver no GitLab.
+image: node:22
+
+stages: [test, build]
+
+backend:
+  stage: test
+  cache:
+    key: backend
+    paths: [backend/node_modules/, /root/.cache/mongodb-binaries/]
+  script:
+    - cd backend
+    - npm ci
+    - npm test
+
+frontend:
+  stage: test
+  cache:
+    key: frontend
+    paths: [frontend/node_modules/]
+  script:
+    - cd frontend
+    - npm ci
+    - npm test
+    - npm run build

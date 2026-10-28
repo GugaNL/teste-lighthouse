@@ -1,0 +1,21 @@
+{
+  "name": "codex-catalogo",
+  "version": "1.0.0",
+  "description": "Codex Catálogo — gerenciamento de catálogo de produtos (React + Node.js + MongoDB)",
+  "private": true,
+  "scripts": {
+    "setup": "npm install && npm --prefix backend install && npm --prefix frontend install && node scripts/env.js",
+    "dev": "concurrently -k -n db,api,web -c gray,blue,green \"npm --prefix backend run db\" \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
+    "seed": "npm --prefix backend run seed",
+    "test": "npm --prefix backend test && npm --prefix frontend test",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix backend start",
+    "test:api": "npm --prefix backend run test:api"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

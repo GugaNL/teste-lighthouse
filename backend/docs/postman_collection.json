@@ -1,0 +1,308 @@
+{
+  "info": {
+    "name": "Codex Catálogo — API de produtos",
+    "description": "Fluxo completo do CRUD com testes automáticos. Rode a pasta inteira em ordem (Run collection) com a API no ar em {{baseUrl}}. Cada requisição valida status HTTP, cabeçalhos e corpo — inclusive os casos de erro.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4008" },
+    { "key": "productId", "value": "" },
+    { "key": "missingId", "value": "6720c1f4a2b9d43c8e1f0a11" }
+  ],
+  "item": [
+    {
+      "name": "Health check",
+      "request": { "method": "GET", "url": "{{baseUrl}}/health" },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200 e banco conectado', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().mongo).to.eql('connected');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Criar produto",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/products",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Produto Postman\",\n  \"description\": \"Criado pela coleção de testes\",\n  \"price\": 199.9,\n  \"stock\": 10,\n  \"category\": \"Testes\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "pm.test('Location e ETag', () => {",
+              "  pm.expect(pm.response.headers.get('Location')).to.eql(`/products/${body.id}`);",
+              "  pm.expect(pm.response.headers.get('ETag')).to.eql('\"1\"');",
+              "});",
+              "pm.test('corpo serializado', () => {",
+              "  pm.expect(body).to.include({ name: 'Produto Postman', price: 199.9, stock: 10, category: 'Testes', version: 1 });",
+              "  pm.expect(body).to.not.have.property('_id');",
+              "});",
+              "pm.collectionVariables.set('productId', body.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Criar produto inválido (400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/products",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"TV\",\n  \"price\": 0,\n  \"stock\": -1,\n  \"category\": \"\"\n}" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('400 com um erro por campo', () => {",
+              "  pm.response.to.have.status(400);",
+              "  const campos = pm.response.json().details.map((d) => d.field).sort();",
+              "  pm.expect(campos).to.eql(['category', 'name', 'price', 'stock']);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Listar produtos",
+      "request": { "method": "GET", "url": "{{baseUrl}}/products" },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200 com lista e X-Total-Count', () => {",
+              "  pm.response.to.have.status(200);",
+              "  const lista = pm.response.json();",
+              "  pm.expect(lista).to.be.an('array');",
+              "  pm.expect(Number(pm.response.headers.get('X-Total-Count'))).to.eql(lista.length);",
+              "  pm.expect(lista.map((p) => p.id)).to.include(pm.collectionVariables.get('productId'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Listar com busca, ordenação e paginação",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/products?search=postman&sort=-price&page=1&limit=5",
+          "host": ["{{baseUrl}}"],
+          "path": ["products"],
+          "query": [
+            { "key": "search", "value": "postman" },
+            { "key": "sort", "value": "-price" },
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "5" }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('encontra o produto pela busca', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().map((p) => p.name)).to.include('Produto Postman');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Buscar produto por ID",
+      "request": { "method": "GET", "url": "{{baseUrl}}/products/{{productId}}" },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200 com ETag da versão', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('productId'));",
+              "  pm.expect(pm.response.headers.get('ETag')).to.eql('\"1\"');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Buscar ID inexistente (404)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/products/{{missingId}}" },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": ["pm.test('404', () => pm.response.to.have.status(404));"] }
+        }
+      ]
+    },
+    {
+      "name": "Buscar ID fora do formato (400)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/products/123" },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] }
+        }
+      ]
+    },
+    {
+      "name": "Atualizar produto (If-Match)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "If-Match", "value": "\"1\"" }
+        ],
+        "url": "{{baseUrl}}/products/{{productId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Produto Postman (editado)\",\n  \"description\": \"\",\n  \"price\": 149.9,\n  \"stock\": 0,\n  \"category\": \"Testes\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200 e versão incrementada', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json()).to.include({ name: 'Produto Postman (editado)', stock: 0, inStock: false, version: 2 });",
+              "  pm.expect(pm.response.headers.get('ETag')).to.eql('\"2\"');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Atualizar sobre versão antiga (412)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "If-Match", "value": "\"1\"" }
+        ],
+        "url": "{{baseUrl}}/products/{{productId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Sobrescrita indevida\",\n  \"price\": 1,\n  \"stock\": 1,\n  \"category\": \"Testes\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('412 com a versão atual', () => {",
+              "  pm.response.to.have.status(412);",
+              "  pm.expect(pm.response.json().currentVersion).to.eql(2);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Atualizar com dados inválidos (400)",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/products/{{productId}}",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Produto Postman\",\n  \"price\": 10.999,\n  \"stock\": 1.5,\n  \"category\": \"Testes\"\n}" }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('400 em price e stock', () => {",
+              "  pm.response.to.have.status(400);",
+              "  pm.expect(pm.response.json().details.map((d) => d.field).sort()).to.eql(['price', 'stock']);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Resumo por categoria",
+      "request": { "method": "GET", "url": "{{baseUrl}}/categories" },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('200 com a categoria Testes', () => {",
+              "  pm.response.to.have.status(200);",
+              "  const testes = pm.response.json().find((c) => c.name === 'Testes');",
+              "  pm.expect(testes).to.include({ products: 1, outOfStock: 1 });",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Remover produto",
+      "request": { "method": "DELETE", "url": "{{baseUrl}}/products/{{productId}}" },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('204 sem corpo', () => {",
+              "  pm.response.to.have.status(204);",
+              "  pm.expect(pm.response.text()).to.eql('');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Remover de novo (404)",
+      "request": { "method": "DELETE", "url": "{{baseUrl}}/products/{{productId}}" },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": ["pm.test('404', () => pm.response.to.have.status(404));"] }
+        }
+      ]
+    },
+    {
+      "name": "Buscar removido (404)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/products/{{productId}}" },
+      "event": [
+        {
+          "listen": "test",
+          "script": { "exec": ["pm.test('404', () => pm.response.to.have.status(404));"] }
+        }
+      ]
+    }
+  ]
+}

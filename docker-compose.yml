@@ -1,0 +1,43 @@
+# Sobe tudo com um comando:  docker compose up --build
+#   App (API + site):  http://localhost:4008
+#   Documentação:      http://localhost:4008/docs
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      - PORT=4008
+      - NODE_ENV=production
+      - MONGO_URL=mongodb://mongo:27017/codex-catalogo
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      # Cria o catálogo de demonstração na primeira subida (só se estiver vazio).
+      - SEED_ON_START=${SEED_ON_START:-true}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - '${APP_PORT:-4008}:4008'
+
+  mongo:
+    image: mongo:7
+    # Sem isto o WiredTiger reserva até metade da RAM do host para cache.
+    command: ['mongod', '--wiredTigerCacheSizeGB', '0.25']
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    # Teste TCP em vez de `mongosh ping` (o mongosh é um processo Node inteiro).
+    # O `bash -c` é necessário: no mongo:7 o /bin/sh é dash, sem /dev/tcp.
+    healthcheck:
+      test: ['CMD-SHELL', "bash -c 'echo > /dev/tcp/127.0.0.1/27017'"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 768M
+
+volumes:
+  mongo-data:

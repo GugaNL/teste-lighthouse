@@ -1,0 +1,325 @@
+openapi: 3.0.3
+info:
+  title: Codex Catálogo — API de produtos
+  version: 1.0.0
+  description: |
+    API REST do gerenciamento de catálogo de produtos.
+
+    **Contrato do desafio** (obrigatório): `GET/POST /products` e
+    `GET/PUT/DELETE /products/{id}`, com as regras de `name`, `price`,
+    `stock` e `category`.
+
+    **Além do pedido** (compatível com o contrato): filtros, ordenação e
+    paginação opcionais na listagem, resumo por categoria, controle de
+    concorrência otimista com `ETag`/`If-Match` e health check.
+
+    Toda resposta de erro tem o mesmo formato (`Error`), com mensagens em
+    português prontas para exibir ao usuário.
+servers:
+  - url: http://localhost:4008
+    description: Desenvolvimento local
+tags:
+  - name: Produtos
+    description: CRUD do catálogo (endpoints obrigatórios do desafio)
+  - name: Categorias
+    description: Resumo do catálogo agrupado por categoria
+  - name: Infra
+    description: Saúde da aplicação
+
+paths:
+  /products:
+    get:
+      tags: [Produtos]
+      summary: Lista todos os produtos
+      description: |
+        Sem parâmetros devolve **todos** os produtos (mais recentes primeiro).
+        Os parâmetros são opcionais e combináveis. Quando `page` ou `limit`
+        são informados a resposta traz só a página pedida — o total vem
+        sempre no cabeçalho `X-Total-Count`, e o corpo continua sendo uma
+        lista, então o cliente não muda de formato ao paginar.
+      parameters:
+        - name: search
+          in: query
+          description: Busca (sem diferenciar maiúsculas) em nome, descrição e categoria.
+          schema: { type: string, maxLength: 100 }
+        - name: category
+          in: query
+          description: Categoria exata, sem diferenciar maiúsculas.
+          schema: { type: string, maxLength: 60 }
+        - name: inStock
+          in: query
+          description: "`true` só com estoque, `false` só esgotados."
+          schema: { type: boolean }
+        - name: sort
+          in: query
+          description: Campo de ordenação; prefixo `-` inverte. Padrão `-createdAt`.
+          schema:
+            type: string
+            enum: [name, -name, price, -price, stock, -stock, createdAt, -createdAt, updatedAt, -updatedAt]
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: limit
+          in: query
+          description: Itens por página (padrão 20 quando só `page` é informado).
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200':
+          description: Lista de produtos
+          headers:
+            X-Total-Count:
+              description: Total de produtos que atendem aos filtros (ignorando a paginação).
+              schema: { type: integer }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Product' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Produtos]
+      summary: Cria um novo produto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductInput' }
+            example:
+              name: Fone Bluetooth Pulse
+              description: Cancelamento de ruído ativo e 30h de bateria
+              price: 349.9
+              stock: 25
+              category: Eletrônicos
+      responses:
+        '201':
+          description: Produto criado
+          headers:
+            Location:
+              description: URL do produto criado.
+              schema: { type: string, example: /products/6720c1f4a2b9d43c8e1f0a11 }
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /products/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+    get:
+      tags: [Produtos]
+      summary: Retorna um produto por ID
+      responses:
+        '200':
+          description: Produto encontrado
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '400': { $ref: '#/components/responses/InvalidId' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Produtos]
+      summary: Atualiza um produto existente
+      description: |
+        Substituição completa: o corpo segue as mesmas regras da criação
+        (por isso o mesmo formulário serve para criar e editar no frontend).
+
+        **Opcional:** envie `If-Match` com o `ETag` recebido ao carregar o
+        produto. Se alguém tiver alterado o produto nesse meio-tempo, a API
+        responde `412` em vez de sobrescrever a alteração alheia. Sem o
+        cabeçalho, a última gravação vence.
+      parameters:
+        - name: If-Match
+          in: header
+          required: false
+          description: ETag da versão que o cliente editou (ex. `"3"`), ou `*`.
+          schema: { type: string, example: '"3"' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductInput' }
+      responses:
+        '200':
+          description: Produto atualizado
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412':
+          description: O produto mudou desde a versão informada em `If-Match`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                statusCode: 412
+                error: Precondition Failed
+                message: Este produto foi alterado por outra pessoa enquanto você editava. Recarregue para ver a versão atual.
+                currentVersion: 4
+    delete:
+      tags: [Produtos]
+      summary: Remove um produto
+      responses:
+        '204':
+          description: Produto removido (sem corpo)
+        '400': { $ref: '#/components/responses/InvalidId' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /categories:
+    get:
+      tags: [Categorias]
+      summary: Resumo do catálogo por categoria
+      description: Alimenta os indicadores, o filtro e as sugestões de categoria do frontend.
+      responses:
+        '200':
+          description: Categorias em ordem alfabética
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CategorySummary' }
+
+  /health:
+    get:
+      tags: [Infra]
+      summary: Health check
+      responses:
+        '200':
+          description: Aplicação no ar
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  mongo: { type: string, enum: [connected, disconnected] }
+                  uptime: { type: number, example: 12.34 }
+
+components:
+  parameters:
+    ProductId:
+      name: id
+      in: path
+      required: true
+      description: ObjectId do MongoDB (24 caracteres hexadecimais).
+      schema: { type: string, pattern: '^[0-9a-fA-F]{24}$', example: 6720c1f4a2b9d43c8e1f0a11 }
+
+  headers:
+    ETag:
+      description: Versão do produto, para usar em `If-Match` no `PUT`.
+      schema: { type: string, example: '"1"' }
+
+  schemas:
+    ProductInput:
+      type: object
+      required: [name, price, stock, category]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 120
+          description: Obrigatório. Espaços nas pontas são removidos antes de contar.
+        description:
+          type: string
+          maxLength: 1000
+          description: Opcional.
+        price:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+          maximum: 999999999.99
+          multipleOf: 0.01
+          description: Maior que zero, no máximo 2 casas decimais (é dinheiro).
+        stock:
+          type: integer
+          minimum: 0
+          maximum: 999999999
+        category:
+          type: string
+          minLength: 1
+          maxLength: 60
+          description: |
+            Obrigatória e não vazia. Se já existir a mesma categoria com outra
+            capitalização ("eletrônicos" × "Eletrônicos"), a grafia existente é
+            reaproveitada para o catálogo não se fragmentar.
+
+    Product:
+      allOf:
+        - $ref: '#/components/schemas/ProductInput'
+        - type: object
+          properties:
+            id: { type: string, example: 6720c1f4a2b9d43c8e1f0a11 }
+            inStock: { type: boolean, description: Derivado de `stock > 0`. }
+            version: { type: integer, example: 1, description: Incrementa a cada atualização. }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+
+    CategorySummary:
+      type: object
+      properties:
+        name: { type: string, example: Eletrônicos }
+        products: { type: integer, example: 6 }
+        stock: { type: integer, example: 143, description: Unidades em estoque. }
+        inventoryValue: { type: number, example: 48210.5, description: Soma de preço × estoque. }
+        outOfStock: { type: integer, example: 1 }
+
+    Error:
+      type: object
+      required: [statusCode, error, message]
+      properties:
+        statusCode: { type: integer, example: 400 }
+        error: { type: string, example: Bad Request }
+        message: { type: string, example: Verifique os campos destacados. }
+        details:
+          type: array
+          description: Presente nos erros de validação — um item por campo.
+          items:
+            type: object
+            properties:
+              field: { type: string, example: price }
+              message: { type: string, example: Preço deve ser maior que zero }
+
+  responses:
+    ValidationError:
+      description: Dados inválidos
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            statusCode: 400
+            error: Bad Request
+            message: Verifique os campos destacados.
+            details:
+              - field: name
+                message: Nome deve ter pelo menos 3 caracteres
+              - field: price
+                message: Preço deve ser maior que zero
+    InvalidId:
+      description: ID fora do formato
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            statusCode: 400
+            error: Bad Request
+            message: ID inválido — deve ter 24 caracteres hexadecimais.
+            details:
+              - field: id
+                message: ID inválido — deve ter 24 caracteres hexadecimais.
+    NotFound:
+      description: Produto não encontrado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            statusCode: 404
+            error: Not Found
+            message: Produto não encontrado.

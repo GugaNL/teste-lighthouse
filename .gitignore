@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+.localdb/
+.env
+.env.local
+*.log
