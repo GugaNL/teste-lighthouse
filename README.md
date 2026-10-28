@@ -41,15 +41,15 @@ Solução do desafio técnico [`occ-react-node`](https://gitlab.com/lighthouseit
 | `stock` inteiro ≥ 0 | ✅ | idem (recusa fracionado e negativo) |
 | `category` obrigatória e não vazia | ✅ | idem (recusa vazio e só espaços) |
 | Banco **MongoDB via Mongoose** | ✅ | [`ProductSchema.js`](backend/src/app/schema/ProductSchema.js) |
-| **Frontend** React: listagem consumindo a API | ✅ | [`pages/ProductList.jsx`](frontend/src/pages/ProductList.jsx) |
-| Formulário de criação **e** edição (Nome, Descrição, Preço, Estoque, Categoria) | ✅ | **Um único** [`ProductForm`](frontend/src/components/ProductForm.jsx) usado por [`ProductCreate`](frontend/src/pages/ProductCreate.jsx) e [`ProductEdit`](frontend/src/pages/ProductEdit.jsx) |
-| Exclusão com confirmação prévia | ✅ | [`ConfirmDialog`](frontend/src/components/ConfirmDialog.jsx) acessível (foco no "Cancelar", Esc, Tab preso) |
-| Feedback de **Loading** | ✅ | esqueleto na primeira carga, lista esmaecida ao recarregar, botões "Salvando…/Excluindo…", [`Estado.jsx`](frontend/src/components/Estado.jsx) |
+| **Frontend** React: listagem consumindo a API | ✅ | [`pages/ProductList.tsx`](frontend/src/pages/ProductList.tsx) |
+| Formulário de criação **e** edição (Nome, Descrição, Preço, Estoque, Categoria) | ✅ | **Um único** [`ProductForm`](frontend/src/components/ProductForm.tsx) usado por [`ProductCreate`](frontend/src/pages/ProductCreate.tsx) e [`ProductEdit`](frontend/src/pages/ProductEdit.tsx) |
+| Exclusão com confirmação prévia | ✅ | [`ConfirmDialog`](frontend/src/components/ConfirmDialog.tsx) acessível (`<dialog>` nativo modal, foco no "Cancelar", Esc, Tab preso) |
+| Feedback de **Loading** | ✅ | esqueleto na primeira carga, lista esmaecida ao recarregar, botões "Salvando…/Excluindo…", [`Feedback.tsx`](frontend/src/components/Feedback.tsx) |
 | Feedback de **Erro** | ✅ | erro por campo, alerta no formulário, bloco "Tentar de novo", erro dentro do diálogo e toasts |
 | Organização: Rotas, Controllers, Lógica separados | ✅ | `routes → validation → controller → service → repository → schema` + `rules/` puras |
-| HTTP centralizado, `try/catch`, estado sincronizado | ✅ | [`services/api.js`](frontend/src/services/api.js) + [`productService.js`](frontend/src/services/productService.js) + [`useRequest`](frontend/src/hooks/useRequest.js) |
+| HTTP centralizado, `try/catch`, estado sincronizado | ✅ | [`services/api.ts`](frontend/src/services/api.ts) + [`productService.ts`](frontend/src/services/productService.ts) + [`productQueries.ts`](frontend/src/queries/productQueries.ts) |
 | Status HTTP corretos e mensagens úteis | ✅ | 200, 201, 204, 400, 404, 412, 413, 500 — [tabela](#códigos-de-status) |
-| Reutilização (mesmo formulário para Create/Edit) | ✅ | `ProductForm`, `FormField`, `ConfirmDialog`, `Estado`, `useRequest` |
+| Reutilização (mesmo formulário para Create/Edit) | ✅ | `ProductForm`, `FormField`, `ConfirmDialog`, `Feedback`, `productQueries` |
 | README: guia de execução | ✅ | [seção 2](#2-guia-de-execução) |
 | README: decisões técnicas | ✅ | [seção 5](#5-decisões-técnicas) |
 | `.env.example` | ✅ | [`backend/.env.example`](backend/.env.example), [`frontend/.env.example`](frontend/.env.example), [`.env.example`](.env.example) (Docker) |
@@ -269,7 +269,10 @@ curl -i -X DELETE http://localhost:4008/products/<id>
 | API | **Express 5** | Padrão dos projetos Codex; o Express 5 já propaga erro de handler assíncrono e tem roteamento mais estrito |
 | Banco | **MongoDB + Mongoose 8** | Opção permitida pelo desafio e padrão Codex; collation `pt` resolve ordenação e comparação sem diferenciar maiúsculas |
 | Validação | **Joi** | Esquema declarativo, todas as mensagens em um lugar, conversão/limpeza do corpo (`stripUnknown`) |
-| Frontend | **React 18 + Vite + React Router 6 + axios + Sass** | Padrão Codex; nenhuma biblioteca de estado — o problema não pede |
+| Frontend | **React 18 + TypeScript + Vite + React Router 6 + axios + Sass** | Padrão Codex; TypeScript estrito com os tipos do domínio num lugar só ([`types/`](frontend/src/types)) |
+| Dados no frontend | **TanStack Query 5** | Cache, cancelamento, nova tentativa e invalidação depois de cada escrita, sem estado global à mão |
+| Formulário | **react-hook-form + zod** | Validação declarativa com as mesmas mensagens do Joi; a saída do esquema já é o corpo da requisição |
+| Qualidade | **ESLint (typescript-eslint, react-hooks, jsx-a11y) + Prettier** | Lint com tipos e regras de acessibilidade; formatação conferida no CI |
 | Testes | **Jest + Supertest + mongodb-memory-server** / **Vitest + Testing Library** | Testes de integração com MongoDB real em memória, sem mocks de banco |
 | Entrega | **Docker multi-stage + Compose** | Um container serve API e site: um serviço, um domínio, sem CORS |
 
@@ -292,7 +295,7 @@ HTTP ─▶ routes ─▶ validation ─▶ controller ─▶ service ─▶ rep
 
 ### Validação em três camadas, com papéis diferentes
 
-1. **Frontend** ([`productRules.js`](frontend/src/utils/productRules.js)) — UX: o erro aparece ao sair do campo, sem ida ao servidor. Espelha as mensagens da API.
+1. **Frontend** ([`productSchema.ts`](frontend/src/schemas/productSchema.ts), zod) — UX: o erro aparece ao sair do campo, sem ida ao servidor. Espelha as mensagens da API, com os limites de [`productRules.ts`](frontend/src/utils/productRules.ts).
 2. **Joi na API** — o contrato: é a autoridade. Devolve **todos** os campos inválidos de uma vez, com `field` e `message`.
 3. **Schema Mongoose** — última linha de defesa: nenhum caminho que escreva no banco (seed, script, código futuro) grava produto inválido.
 
@@ -311,13 +314,26 @@ Quando a API recusa algo que passou no cliente, o formulário mostra a mensagem 
 
 ### Frontend
 
-- **Chamadas HTTP centralizadas**: só [`services/productService.js`](frontend/src/services/productService.js) conhece as rotas; páginas nunca importam o axios. O [`services/api.js`](frontend/src/services/api.js) converte **qualquer** falha (validação, 404, 412, rede, timeout, cancelamento) num `ApiError` com mensagem pronta e `fieldErrors` por campo.
-- **[`useRequest`](frontend/src/hooks/useRequest.js)**: um hook para todas as leituras, com `try/catch`, `loading`/`error`/`data`, `reload()` e **cancelamento** da requisição anterior via `AbortController` (digitar na busca não deixa uma resposta velha sobrescrever a nova). Ao recarregar, os dados anteriores ficam na tela esmaecidos em vez de piscar um esqueleto.
-- **Sincronização do estado**: depois de criar, editar ou excluir, lista **e** indicadores são recarregados do servidor (fonte da verdade); o item salvo volta destacado na lista. Excluir o último item de uma página volta para a página anterior; excluir algo que outra pessoa já excluiu (`404`) é tratado como sucesso.
-- **Estado na URL**: busca, filtro, ordenação e página ficam na query string (`/?busca=fone&ordem=-price`) — recarregar, voltar no navegador ou compartilhar o link mostra a mesma lista.
-- **Sem Redux/React Query**: o estado é local de cada tela e o servidor é a fonte da verdade; um hook de 50 linhas cobre o caso e deixa explícito o tratamento de erro que o desafio avalia.
-- **Acessibilidade**: rótulos ligados aos campos, `aria-invalid` + `aria-describedby` nos erros, foco no primeiro campo inválido, diálogo com foco no botão seguro e Tab preso, toasts em região `aria-live`, link "pular para o conteúdo", estado de estoque com texto (não só cor) e `prefers-reduced-motion`.
-- **Visual**: paleta institucional Codex (mesmos tokens do Painel BI/RCA/Bolso), fonte Inter, números tabulares; no celular a tabela vira cartões só com CSS.
+- **TypeScript estrito** (`strict`, `noUncheckedIndexedAccess`): o formato público da API mora em [`types/product.ts`](frontend/src/types/product.ts) e é a única definição de `Product`, `ProductInput`, filtros e resumo por categoria usada por services, queries, componentes e testes. O `state` trocado entre listagem e formulários também é tipado ([`types/navigation.ts`](frontend/src/types/navigation.ts)) e lido com validação.
+- **Chamadas HTTP centralizadas**: só [`services/productService.ts`](frontend/src/services/productService.ts) conhece as rotas; páginas nunca importam o axios. O [`services/api.ts`](frontend/src/services/api.ts) converte **qualquer** falha (validação, 404, 412, rede, timeout, cancelamento) num `ApiError` com mensagem pronta e `fieldErrors` por campo — e é esse o tipo de erro registrado no React Query, então `error.status` e `error.message` já chegam tipados nas telas.
+- **Dados com TanStack Query** ([`queries/productQueries.ts`](frontend/src/queries/productQueries.ts)): cada leitura tem uma chave hierárquica (`['products', 'list', filtros]`, `['products', 'detail', id]`, `['categories']`). A requisição anterior é **cancelada** quando os filtros mudam (digitar na busca não deixa uma resposta velha sobrescrever a nova), os dados anteriores ficam na tela esmaecidos enquanto os novos chegam, e as categorias são buscadas uma vez para indicadores, filtro e sugestões do formulário. Só rede, timeout e 5xx ganham uma nova tentativa automática; 4xx nunca se repete.
+- **Sincronização do estado**: depois de criar, editar ou excluir, as mutations **invalidam** listas e indicadores (o servidor é a fonte da verdade) e gravam o produto salvo no cache; o item volta destacado na lista. Excluir o último item de uma página volta para a página anterior; excluir algo que outra pessoa já excluiu (`404`) é tratado como sucesso. A edição sempre confere o servidor ao abrir (a versão importa para o `If-Match`) e não recarrega sozinha no meio da digitação.
+- **Formulário com react-hook-form + zod**: o esquema ([`productSchema.ts`](frontend/src/schemas/productSchema.ts)) valida com as mesmas mensagens da API e sua saída já é o corpo da requisição (texto normalizado, estoque em número). Valida ao sair do campo e, depois, a cada tecla; o foco vai para o primeiro campo inválido; erros por campo vindos da API aparecem no campo certo.
+- **Alterações não salvas**: com o roteador de dados, o `useBlocker` pede confirmação em qualquer saída do formulário — Cancelar, "← Voltar", links do topo e o voltar do navegador — e o `beforeunload` cobre fechar/recarregar a aba.
+- **Estado na URL**: busca, filtro, ordenação e página ficam na query string (`/?busca=fone&ordem=-price`) — recarregar, voltar no navegador ou compartilhar o link mostra a mesma lista. A lógica fica em [`useProductFilters`](frontend/src/hooks/useProductFilters.ts); exclusão e exportação também saíram da página para hooks próprios (`useProductDeletion`, `useCsvExport`).
+- **Carregamento sob demanda**: as telas de formulário (com zod e react-hook-form) ficam num pacote separado, baixado só ao abrir o formulário; a listagem não carrega esse código.
+- **Acessibilidade**: rótulos ligados aos campos, `aria-invalid` + `aria-describedby` nos erros, foco no primeiro campo inválido, diálogo com `<dialog>` nativo (o resto da página fica inerte) com foco no botão seguro e Tab preso, **foco no título da página e título da aba a cada troca de tela**, rolagem restaurada, toasts em região `aria-live`, link "pular para o conteúdo", estado de estoque com texto (não só cor) e `prefers-reduced-motion`. O `eslint-plugin-jsx-a11y` confere a marcação no CI.
+- **Visual**: paleta institucional Codex (mesmos tokens do Painel BI/RCA/Bolso), **tema escuro** automático pelo sistema operacional (só os tokens mudam), fonte Inter servida pelo próprio app (sem Google Fonts), números tabulares; no celular a tabela vira cartões só com CSS.
+
+### Convenção de nomes no frontend
+
+| O quê | Idioma | Exemplos |
+| :--- | :--- | :--- |
+| O que é exportado: componentes, hooks, funções, tipos, props e campos de objetos compartilhados | **Inglês** | `ProductForm`, `useProductFilters`, `formatCurrency`, `ErrorState`, `onRetry`, `returnTo` |
+| Variáveis e funções locais, comentários | Português | `voltarPara`, `marcarPrimeiroInvalido` |
+| Texto da interface, mensagens de erro, classes CSS, parâmetros da URL | Português | `botao--primario`, `?busca=&pagina=` |
+
+A fronteira é o `export`: quem importa um módulo lê uma API em inglês, como a da API REST (`name`, `price`, `stock`); o que o usuário vê — tela, endereço, CSS — fica em português.
 
 ---
 
@@ -348,14 +364,21 @@ Quando a API recusa algo que passou no cliente, o formulário mostra a mensagem 
 │           ├── errors/               # BadRequest, NotFound, PreconditionFailed
 │           └── helpers/              # log de requisições
 ├── frontend/
+│   ├── eslint.config.js              # typescript-eslint + react-hooks + jsx-a11y + Prettier
+│   ├── tsconfig.json                 # app e testes (tsconfig.node.json: vite.config.ts)
 │   └── src/
-│       ├── services/                 # api.js (axios + ApiError) e productService.js
-│       ├── hooks/                    # useRequest, useDebouncedValue, useUnsavedChangesWarning
-│       ├── components/               # ProductForm, ProductTable, ConfirmDialog, FormField, MoneyInput…
+│       ├── types/                    # Product, ProductInput, filtros, state de navegação
+│       ├── services/                 # api.ts (axios + ApiError) e productService.ts
+│       ├── queries/                  # React Query: cliente e queries/mutations do catálogo
+│       ├── schemas/                  # productSchema.ts (zod, mesmas mensagens do Joi)
+│       ├── hooks/                    # useProductFilters, useProductDeletion, useCsvExport, useDocumentTitle…
+│       ├── components/               # ProductForm, ProductTable, ConfirmDialog, FormField, Feedback…
 │       ├── pages/                    # ProductList, ProductCreate, ProductEdit, NotFound
 │       ├── context/                  # ToastContext
-│       ├── utils/                    # regras do produto, formatação, CSV
-│       ├── styles/                   # main.scss (tokens Codex)
+│       ├── utils/                    # limites do produto, formatação, CSV
+│       ├── styles/                   # main.scss (tokens Codex, tema claro e escuro)
+│       ├── test/                     # setup do Vitest e renderWithProviders
+│       ├── routes.tsx                # rotas (formulários sob demanda)
 │       └── __tests__/                # Vitest + Testing Library
 ├── docs/screenshots/
 ├── Dockerfile                        # multi-stage: build do React + runtime da API
@@ -376,10 +399,17 @@ npm run test:api    # coleção Postman contra a API no ar (npm run dev antes)
 | Suíte | Ferramentas | Quantidade | Cobre |
 | :--- | :--- | :---: | :--- |
 | Backend | Jest + Supertest + mongodb-memory-server | **89** | Cada endpoint e status; cada regra de negócio nos limites (2/3/120/121 caracteres, `0`, `0.01`, `-1`, `1.5`, texto, `null`, só espaços); busca, filtros, ordenação com acento, paginação; `If-Match`/`412`; JSON malformado; rota desconhecida; resumo por categoria; funções puras |
-| Frontend | Vitest + Testing Library | **52** | Regras do cliente (mesmos casos da API); `ApiError` para cada tipo de falha; `ProductForm` criando e editando, erro da API no campo certo, estado de envio, descarte com confirmação; `ConfirmDialog` (foco, Esc, Tab, ocupado); `ProductList` com carregando, erro + tentar de novo, vazio, exclusão confirmada/cancelada/falhando e busca com debounce |
+| Frontend | Vitest + Testing Library | **58** | Esquema zod (mesmos casos da API); `ApiError` para cada tipo de falha; `ProductForm` criando e editando, erro da API no campo certo, estado de envio, descarte com confirmação no Cancelar, no voltar do navegador e nenhuma depois de salvar; `ConfirmDialog` (foco, Esc, Tab, clique no fundo, ocupado); `ProductList` com carregando, erro + tentar de novo, vazio, exclusão confirmada/cancelada/falhando e busca com debounce |
 | Contrato | Postman / Newman | **15 req. / 17 asserções** | Fluxo ponta a ponta contra a API real: criar → listar → buscar → atualizar → conflito → remover → 404 |
 
-O CI ([GitHub Actions](.github/workflows/ci.yml) e [GitLab CI](.gitlab-ci.yml)) roda as duas suítes, o build do frontend e o build da imagem Docker.
+O CI ([GitHub Actions](.github/workflows/ci.yml) e [GitLab CI](.gitlab-ci.yml)) roda as duas suítes; no frontend, também Prettier (`format:check`), ESLint e o typecheck (`tsc`, dentro do build); por fim, o build da imagem Docker.
+
+```bash
+cd frontend
+npm run lint          # ESLint com tipos
+npm run typecheck     # tsc, sem emitir
+npm run format:check  # Prettier
+```
 
 ---
 
@@ -394,7 +424,8 @@ O CI ([GitHub Actions](.github/workflows/ci.yml) e [GitLab CI](.gitlab-ci.yml)) 
 - ⚠️ **Aviso de alterações não salvas** (ao fechar a aba e ao cancelar o formulário).
 - 📚 **Swagger UI** a partir do contrato OpenAPI + **coleção Postman** com testes.
 - 🐳 **Docker** em um comando, com healthcheck, usuário não-root e seed automático.
-- 🧪 **141 testes automatizados** + contrato Newman, e **CI** para GitHub e GitLab.
+- 🧪 **147 testes automatizados** + contrato Newman, e **CI** para GitHub e GitLab (com lint, typecheck e formatação).
+- 🌙 **Tema escuro** automático, seguindo o sistema operacional.
 - 🛡️ Helmet, limite de corpo (100 KB), regex de busca escapada (sem injeção de padrão), mensagens internas nunca vazam no `500`.
 - ♿ Acessibilidade e layout responsivo (tabela vira cartões no celular).
 

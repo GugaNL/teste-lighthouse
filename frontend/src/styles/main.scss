@@ -2,9 +2,7 @@
 //
 // Paleta institucional Codex: a mesma base de tokens do Painel RCA, do Painel
 // BI e do Codex Bolso. Os papéis (--fundo, --primaria, --texto…) são nomeados
-// pela função, não pelo degrau da escala. O tema escuro segue o sistema
-// operacional e só redefine esses papéis — nenhuma regra abaixo usa cor fixa
-// fora do topo, que é escuro nos dois temas.
+// pela função, não pelo degrau da escala.
 //
 // Interface de operação: densa, sóbria, números tabulares. Estado sempre vem
 // com texto ao lado da cor (selo "Esgotado", não só vermelho).
@@ -35,14 +33,14 @@
   --atencao: #a4620a;
   --atencao-claro: #fdf1e1;
 
-  --sobre-cor: #ffffff; // texto em botão de cor sólida
-  --critico-escuro: #8f1e18; // hover do botão de perigo
+  --sobre-cor: #ffffff;
+  --critico-escuro: #8f1e18;
   --alerta-erro-borda: #f1c2bf;
   --alerta-erro-texto: #7d1b15;
   --alerta-aviso-borda: #f2d3a6;
   --alerta-aviso-texto: #6e4107;
   --linha-hover: #fbfcfd;
-  --veu: rgba(11, 43, 64, 0.45); // fundo atrás do diálogo
+  --veu: rgba(11, 43, 64, 0.45);
   --toast-fundo: var(--texto);
 
   --raio: 8px;
@@ -54,9 +52,6 @@
   --largura-max: 1200px;
 }
 
-// Tema escuro. Os tons "claros" viram fundos escuros tingidos e os "escuros"
-// viram o tom de mais ênfase (mais claro), para os pares texto/fundo continuarem
-// funcionando. Botões de cor sólida passam a ter texto escuro.
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -108,7 +103,14 @@ body {
   margin: 0;
   background: var(--fundo);
   color: var(--texto);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
     sans-serif;
   font-size: 15px;
   line-height: 1.5;
@@ -146,6 +148,10 @@ textarea {
 :focus-visible {
   outline: none;
   box-shadow: var(--foco);
+}
+
+h1[tabindex='-1']:focus-visible {
+  box-shadow: none;
 }
 
 .sr-only {
@@ -191,7 +197,10 @@ textarea {
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
 
   &:hover {
     background: var(--borda);
@@ -479,7 +488,9 @@ textarea {
     cursor: pointer;
     font: inherit;
     color: inherit;
-    transition: border-color 0.15s, background 0.15s;
+    transition:
+      border-color 0.15s,
+      background 0.15s;
 
     &:hover:not(:disabled) {
       border-color: var(--borda-forte);
@@ -537,7 +548,9 @@ textarea {
   border: 1px solid var(--borda-forte);
   border-radius: var(--raio-pequeno);
   background: var(--superficie);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 
   &:hover {
     border-color: var(--texto-3);
@@ -925,18 +938,23 @@ input[type='checkbox'] {
 
 // -------------------------------------------------------------------- modal
 .modal {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: var(--veu);
+  width: min(440px, calc(100% - 32px));
+  max-width: none;
+  max-height: calc(100% - 32px);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  overflow: visible;
   animation: aparecer 0.15s ease-out;
+
+  &::backdrop {
+    background: var(--veu, rgba(11, 43, 64, 0.45));
+    animation: aparecer 0.15s ease-out;
+  }
 
   &__caixa {
     width: 100%;
-    max-width: 440px;
     background: var(--superficie);
     border-radius: var(--raio);
     box-shadow: var(--sombra-alta);
