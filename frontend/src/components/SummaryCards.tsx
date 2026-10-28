@@ -18,10 +18,6 @@ export interface SummaryCardsProps {
   onShowOutOfStock: () => void;
 }
 
-/**
- * Indicadores do catálogo inteiro (não só da página atual), a partir do
- * resumo por categoria da API.
- */
 export default function SummaryCards({
   categories,
   loading,

@@ -18,7 +18,6 @@ import { formatCurrency, plural } from '../utils/format';
 const PAGE_SIZE = 10;
 const DURACAO_DO_DESTAQUE_MS = 4000;
 
-/** Listagem do catálogo. */
 export default function ProductList() {
   useDocumentTitle('Produtos');
   const location = useLocation();
@@ -31,13 +30,11 @@ export default function ProductList() {
   const itens = produtos.data?.items;
   const total = produtos.data?.total ?? 0;
 
-  // Página que deixou de existir (ex.: link antigo, ou exclusões em outra aba).
   const { setPage } = filtros;
   useEffect(() => {
     if (itens && itens.length === 0 && total > 0 && page > 1) setPage(Math.ceil(total / PAGE_SIZE));
   }, [itens, total, page, setPage]);
 
-  // Destaque do produto recém-salvo, vindo da tela de formulário.
   const destaque = readRouteState(location.state).highlightId;
   useEffect(() => {
     if (!destaque) return undefined;
@@ -47,7 +44,6 @@ export default function ProductList() {
     return () => clearTimeout(timer);
   }, [destaque, location.pathname, location.search, navigate]);
 
-  /** Depois de excluir: lista e indicadores voltam a refletir o banco. */
   const exclusao = useProductDeletion(() => {
     if (itens?.length === 1 && page > 1) setPage(page - 1);
   });

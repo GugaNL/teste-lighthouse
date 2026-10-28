@@ -48,7 +48,6 @@ const renderizar = (props: Partial<ProductFormProps> = {}) => {
   return { ...resultado, onSubmit, onCancel };
 };
 
-// Intl separa o símbolo do valor com espaço não separável (U+00A0).
 const brl = (valor: string) => `R$\u00a0${valor}`;
 
 const campo = (rotulo: string) => screen.getByLabelText(new RegExp(`^${rotulo}`));

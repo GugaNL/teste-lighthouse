@@ -1,27 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-
-/**
- * Avisos rápidos de sucesso/erro ("Produto criado", "Não foi possível excluir").
- *
- * Ficam numa região aria-live: leitores de tela anunciam o resultado da ação
- * sem o foco precisar sair de onde o usuário está.
- */
-export type ToastKind = 'success' | 'error' | 'info';
-
-export interface ToastApi {
-  success: (mensagem: string) => void;
-  error: (mensagem: string) => void;
-  info: (mensagem: string) => void;
-}
+import { ToastContext } from './toast';
+import type { ToastApi, ToastKind } from './toast';
 
 interface Toast {
   id: number;
   kind: ToastKind;
   message: string;
 }
-
-const ToastContext = createContext<ToastApi | null>(null);
 
 const DURACAO_MS = 4500;
 const CLASSE_POR_TIPO: Record<ToastKind, string> = { success: 'sucesso', error: 'erro', info: 'info' };
@@ -91,11 +77,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       </div>
     </ToastContext.Provider>
   );
-}
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function useToast(): ToastApi {
-  const contexto = useContext(ToastContext);
-  if (!contexto) throw new Error('useToast precisa estar dentro de <ToastProvider>');
-  return contexto;
 }

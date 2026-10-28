@@ -11,8 +11,6 @@ const sobDemanda =
 
 export const ROUTER_FUTURE = { v7_startTransition: true } as const;
 
-// Rotas do site em português e fora de /products, que é o caminho da API —
-// assim o mesmo servidor entrega API e SPA sem colisão.
 export const routes: RouteObject[] = [
   {
     element: <Layout />,

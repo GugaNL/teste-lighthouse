@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../context/toast';
 import { useDeleteProduct } from '../queries/productQueries';
 import { toApiError } from '../services/api';
 import type { Product } from '../types/product';
@@ -35,7 +35,6 @@ export function useProductDeletion(onDeleted: () => void): ProductDeletion {
     } catch (falha) {
       const erro = toApiError(falha);
       if (erro.status === 404) {
-        // Alguém excluiu antes: o objetivo do usuário já foi atingido.
         toast.info(`“${target.name}” já tinha sido excluído.`);
         cancel();
         onDeleted();

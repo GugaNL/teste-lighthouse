@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import ProductForm from '../components/ProductForm';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../context/toast';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useCategoriesQuery, useCreateProduct } from '../queries/productQueries';
 import { readRouteState } from '../types/navigation';
@@ -15,11 +15,9 @@ export default function ProductCreate() {
   const toast = useToast();
   const voltarPara = readRouteState(location.state).returnTo ?? '/';
 
-  // Só alimenta as sugestões do campo categoria; se falhar, o campo continua livre.
   const categorias = useCategoriesQuery();
   const criacao = useCreateProduct();
 
-  // Se a API recusar, o erro sobe para o ProductForm, que o mostra no campo certo.
   const salvar = async (payload: ProductInput) => {
     const criado = await criacao.mutateAsync(payload);
     toast.success(`“${criado.name}” cadastrado com sucesso.`);

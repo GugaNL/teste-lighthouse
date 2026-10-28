@@ -13,6 +13,5 @@ export const formatDateTime = (iso: string | null | undefined): string => {
   return data && !Number.isNaN(data.getTime()) ? dataHora.format(data) : '—';
 };
 
-/** Concordância simples: plural(1, 'produto') → "1 produto"; plural(3, ...) → "3 produtos". */
 export const plural = (n: number, singular: string, pluralForma = `${singular}s`): string =>
   `${formatNumber(n)} ${n === 1 ? singular : pluralForma}`;

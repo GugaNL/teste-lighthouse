@@ -2,7 +2,6 @@ import { forwardRef } from 'react';
 import type { ChangeEvent, InputHTMLAttributes } from 'react';
 import { formatCurrency } from '../utils/format';
 
-// 11 dígitos = R$ 999.999.999,99, o teto que a API aceita.
 const MAX_DIGITOS = 11;
 
 export interface MoneyInputProps extends Omit<
@@ -13,14 +12,6 @@ export interface MoneyInputProps extends Omit<
   onChange: (valor: number | null) => void;
 }
 
-/**
- * Campo de dinheiro no estilo "caixa eletrônico": cada dígito digitado entra
- * pelos centavos (1 → R$ 0,01; 1999 → R$ 19,99).
- *
- * Evita as três armadilhas do <input type="number"> com dinheiro em pt-BR:
- * vírgula x ponto decimal, terceira casa decimal e o "e" de notação científica.
- * O valor exposto é sempre um número (ou null quando vazio), nunca texto.
- */
 const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function MoneyInput(
   { value, onChange, ...props },
   ref

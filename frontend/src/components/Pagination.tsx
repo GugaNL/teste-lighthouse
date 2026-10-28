@@ -2,7 +2,6 @@ import { formatNumber } from '../utils/format';
 
 type ItemDaPaginacao = number | '…';
 
-/** Páginas visíveis: primeira, última e vizinhas da atual, com reticências no meio. */
 function paginasVisiveis(atual: number, total: number): ItemDaPaginacao[] {
   const paginas = new Set([1, total, atual - 1, atual, atual + 1]);
   const ordenadas = [...paginas].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);

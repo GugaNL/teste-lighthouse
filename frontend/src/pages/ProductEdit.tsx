@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import ProductForm from '../components/ProductForm';
 import { EmptyState, ErrorState, Loading } from '../components/Feedback';
-import { useToast } from '../context/ToastContext';
+import { useToast } from '../context/toast';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useCategoriesQuery, useProductQuery, useUpdateProduct } from '../queries/productQueries';
 import { toApiError } from '../services/api';
@@ -25,8 +25,6 @@ export default function ProductEdit() {
   const categorias = useCategoriesQuery();
   const atualizacao = useUpdateProduct();
 
-  // Conflito de edição (412): outra pessoa salvou este produto depois que o
-  // formulário foi aberto. O usuário decide: recarregar ou sobrescrever.
   const [conflito, setConflito] = useState<ApiError | null>(null);
   const [sobrescrevendo, setSobrescrevendo] = useState(false);
   const ultimoEnvio = useRef<ProductInput | null>(null);
@@ -111,8 +109,6 @@ export default function ProductEdit() {
   }
 
   const atual = produto.data;
-  // Se a versão nova já chegou (recarregou), o formulário mostra o estado atual
-  // e não há mais conflito para avisar.
   const emConflito = conflito && conflito.currentVersion !== atual.version;
   const avisoConflito = emConflito ? (
     <div className="alerta alerta--aviso" role="alert">
@@ -148,7 +144,6 @@ export default function ProductEdit() {
         backTo={voltarPara}
       />
       <section className="painel painel--formulario">
-        {/* A chave remonta o formulário quando chega uma versão nova do produto. */}
         <ProductForm
           key={`${atual.id}-${atual.version}`}
           initialProduct={atual}

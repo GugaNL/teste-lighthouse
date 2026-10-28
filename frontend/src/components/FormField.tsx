@@ -18,13 +18,6 @@ export interface FormFieldProps {
   children: (props: FieldControlProps) => ReactNode;
 }
 
-/**
- * Moldura de um campo de formulário: rótulo, dica, contador e erro.
- *
- * O input em si vem como função (`children(props)`) para receber os atributos
- * de acessibilidade já ligados — aria-invalid e aria-describedby apontando
- * para a dica e para a mensagem de erro — sem cada formulário repetir isso.
- */
 export default function FormField({
   id,
   label,

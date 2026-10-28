@@ -26,11 +26,6 @@ export interface ProductFiltersState {
   clearFilters: () => void;
 }
 
-/**
- * Busca, filtros, ordenação e página moram na URL (?busca=&categoria=...):
- * recarregar a página, voltar no navegador ou mandar o link para alguém
- * mostra exatamente a mesma lista.
- */
 export function useProductFilters(): ProductFiltersState {
   const [params, setParams] = useSearchParams();
 
@@ -50,7 +45,6 @@ export function useProductFilters(): ProductFiltersState {
               proximo.delete(chave);
             else proximo.set(chave, String(valor));
           }
-          // Mudou filtro ou ordem → volta para a primeira página.
           if (!('pagina' in mudancas)) proximo.delete('pagina');
           if (proximo.get('ordem') === DEFAULT_SORT) proximo.delete('ordem');
           if (proximo.get('pagina') === '1') proximo.delete('pagina');
@@ -62,12 +56,10 @@ export function useProductFilters(): ProductFiltersState {
     [setParams]
   );
 
-  // A busca digitada só vai para a URL (e para a API) depois de uma pausa.
   const [searchText, setSearchTextLocal] = useState(search);
   const [buscaConhecida, setBuscaConhecida] = useState(search);
   const [ultimaEnviada, setUltimaEnviada] = useState(search);
 
-  // E o caminho inverso: "Limpar filtros" ou o botão voltar mudam a URL.
   if (search !== buscaConhecida) {
     setBuscaConhecida(search);
     if (search !== ultimaEnviada) setSearchTextLocal(search);

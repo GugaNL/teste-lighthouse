@@ -16,11 +16,6 @@ export interface ProductTableProps {
   linkState: ProductRouteState;
 }
 
-/**
- * Tabela de produtos. No celular as linhas viram cartões só com CSS (cada
- * célula traz o próprio rótulo em data-rotulo) — uma marcação só, sem duas
- * versões da lista para manter em sincronia.
- */
 export default function ProductTable({
   products,
   loading,

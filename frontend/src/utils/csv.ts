@@ -1,10 +1,5 @@
 import type { Product } from '../types/product';
 
-/**
- * Exportação CSV no formato que o Excel em português abre direto:
- * separador ";" (a vírgula é o decimal), BOM UTF-8 (acentos) e aspas quando
- * o texto tem separador, aspas ou quebra de linha.
- */
 const COLUNAS: ReadonlyArray<readonly [keyof Product, string]> = [
   ['name', 'Nome'],
   ['category', 'Categoria'],

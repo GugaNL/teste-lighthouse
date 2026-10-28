@@ -1,30 +1,20 @@
-// Codex Catálogo — folha única.
-//
-// Paleta institucional Codex: a mesma base de tokens do Painel RCA, do Painel
-// BI e do Codex Bolso. Os papéis (--fundo, --primaria, --texto…) são nomeados
-// pela função, não pelo degrau da escala.
-//
-// Interface de operação: densa, sóbria, números tabulares. Estado sempre vem
-// com texto ao lado da cor (selo "Esgotado", não só vermelho).
-
-// ------------------------------------------------------------------- tokens
 :root {
   color-scheme: light;
 
-  --fundo: #f7f9fa; // cinza-050
+  --fundo: #f7f9fa;
   --superficie: #ffffff;
-  --superficie-2: #eef1f4; // cinza-100
-  --borda: #dfe5ea; // cinza-200
-  --borda-forte: #c3ccd4; // cinza-300
+  --superficie-2: #eef1f4;
+  --borda: #dfe5ea;
+  --borda-forte: #c3ccd4;
 
-  --texto: #1b2229; // cinza-900
-  --texto-2: #414b56; // cinza-700
-  --texto-3: #6b7885; // cinza-500
+  --texto: #1b2229;
+  --texto-2: #414b56;
+  --texto-3: #6b7885;
 
-  --primaria: #14507a; // azul-700
-  --primaria-clara: #e3eef6; // azul-100
-  --primaria-escura: #0f3d5c; // azul-800
-  --topo-fundo: #0b2b40; // azul-900
+  --primaria: #14507a;
+  --primaria-clara: #e3eef6;
+  --primaria-escura: #0f3d5c;
+  --topo-fundo: #0b2b40;
 
   --sucesso: #1f6b3b;
   --sucesso-claro: #e6f2ea;
@@ -181,7 +171,6 @@ h1[tabindex='-1']:focus-visible {
   }
 }
 
-// ------------------------------------------------------------------ botões
 .botao {
   display: inline-flex;
   align-items: center;
@@ -292,7 +281,6 @@ h1[tabindex='-1']:focus-visible {
   }
 }
 
-// ------------------------------------------------------------------- layout
 .app {
   min-height: 100vh;
   display: flex;
@@ -444,7 +432,6 @@ h1[tabindex='-1']:focus-visible {
   }
 }
 
-// -------------------------------------------------------------- indicadores
 .indicadores {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -508,7 +495,6 @@ h1[tabindex='-1']:focus-visible {
   }
 }
 
-// ----------------------------------------------------------------- filtros
 .filtros {
   display: flex;
   flex-wrap: wrap;
@@ -583,14 +569,12 @@ input[type='checkbox'] {
   accent-color: var(--primaria);
 }
 
-// ------------------------------------------------------------------ tabela
 .tabela-envoltorio {
   overflow-x: auto;
   border: 1px solid var(--borda);
   border-radius: var(--raio);
   transition: opacity 0.2s;
 
-  // Recarregando com dados antigos na tela: fica visível, mas claramente "velho".
   &.is-atualizando {
     opacity: 0.55;
     pointer-events: none;
@@ -757,7 +741,6 @@ input[type='checkbox'] {
   }
 }
 
-// --------------------------------------------------------------- paginação
 .paginacao {
   display: flex;
   align-items: center;
@@ -788,7 +771,6 @@ input[type='checkbox'] {
   }
 }
 
-// ------------------------------------------------------------------ estados
 .estado {
   display: flex;
   flex-direction: column;
@@ -849,7 +831,6 @@ input[type='checkbox'] {
   }
 }
 
-// --------------------------------------------------------------- formulário
 .formulario {
   display: flex;
   flex-direction: column;
@@ -862,7 +843,7 @@ input[type='checkbox'] {
     margin: 0;
     padding: 0;
     border: none;
-    min-width: 0; // fieldset tem min-width intrínseco grande dentro de grid
+    min-width: 0;
   }
 
   &__acoes {
@@ -936,7 +917,6 @@ input[type='checkbox'] {
   }
 }
 
-// -------------------------------------------------------------------- modal
 .modal {
   width: min(440px, calc(100% - 32px));
   max-width: none;
@@ -986,7 +966,6 @@ input[type='checkbox'] {
   }
 }
 
-// ------------------------------------------------------------------- toasts
 .toasts {
   position: fixed;
   right: 16px;
@@ -1045,7 +1024,6 @@ input[type='checkbox'] {
   }
 }
 
-// --------------------------------------------------------------- responsivo
 @media (max-width: 960px) {
   .indicadores {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1058,8 +1036,6 @@ input[type='checkbox'] {
     padding-inline: 16px;
   }
 
-  // No celular o "+ Novo produto" do topo some: a listagem já tem o mesmo
-  // botão logo abaixo, e os dois juntos estouravam a largura da barra.
   .topo__marca small,
   .topo__link:not(.is-ativo),
   .topo .botao--primario {
@@ -1093,7 +1069,6 @@ input[type='checkbox'] {
     padding: 16px;
   }
 
-  // Tabela vira lista de cartões: cada célula mostra o próprio rótulo.
   .tabela-envoltorio {
     border: none;
     overflow: visible;

@@ -1,12 +1,3 @@
-/**
- * Regras do produto no frontend — espelho de backend/src/app/rules/product.js
- * e do Joi da API.
- *
- * A API continua sendo a autoridade (ela valida de novo e responde 400); estas
- * regras existem para o usuário ver o erro ao sair do campo, sem esperar a ida
- * ao servidor. Se uma regra mudar lá, muda aqui — os testes dos dois lados
- * usam os mesmos casos-limite e as mesmas mensagens.
- */
 import type { Product } from '../types/product';
 import type { ProductFormValues } from '../schemas/productSchema';
 
@@ -22,7 +13,6 @@ export const LOW_STOCK_THRESHOLD = 5;
 
 export const normalizeText = (texto: string): string => texto.trim().replace(/\s+/g, ' ');
 
-/** Produto da API → valores iniciais do formulário (vazio quando é criação). */
 export function toFormValues(produto?: Product): ProductFormValues {
   return {
     name: produto?.name ?? '',
@@ -40,7 +30,6 @@ export interface StockStatus {
   label: string;
 }
 
-/** Situação do estoque para o selo da listagem. */
 export function stockStatus(stock: number): StockStatus {
   if (stock <= 0) return { key: 'esgotado', label: 'Esgotado' };
   if (stock <= LOW_STOCK_THRESHOLD) return { key: 'baixo', label: 'Estoque baixo' };

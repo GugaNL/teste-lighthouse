@@ -6,7 +6,6 @@ export interface PageHeaderProps {
   backTo?: string;
 }
 
-/** Cabeçalho das telas de formulário: voltar, título e subtítulo. */
 export default function PageHeader({ title, subtitle, backTo = '/' }: PageHeaderProps) {
   return (
     <div className="pagina__cabecalho">

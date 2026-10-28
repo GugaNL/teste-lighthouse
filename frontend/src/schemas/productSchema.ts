@@ -65,7 +65,6 @@ export const productFormSchema = z.object({
 
 export type ProductFormErrors = Partial<Record<ProductField, string>>;
 
-/** Valida o formulário inteiro: { campo: mensagem } só com os campos inválidos. */
 export function validateProduct(valores: ProductFormValues): ProductFormErrors {
   const resultado = productFormSchema.safeParse(valores);
   if (resultado.success) return {};

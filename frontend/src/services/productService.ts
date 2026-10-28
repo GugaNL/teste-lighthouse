@@ -7,25 +7,15 @@ import type {
   ProductPage,
 } from '../types/product';
 
-/**
- * Chamadas do recurso de produtos — o único lugar do frontend que conhece as
- * rotas da API. Páginas e hooks importam estas funções, nunca o axios.
- */
-
 export interface RequestOptions {
   signal?: AbortSignal;
 }
 
-/** Remove filtros vazios para a URL da requisição ficar limpa. */
 const semVazios = (params: object) =>
   Object.fromEntries(
     Object.entries(params).filter(([, valor]) => valor !== undefined && valor !== null && valor !== '')
   );
 
-/**
- * Lista produtos. Devolve os itens da página e o total (cabeçalho
- * X-Total-Count), que é o que a paginação precisa.
- */
 export async function listProducts(
   params: ProductListParams = {},
   { signal }: RequestOptions = {}
@@ -45,10 +35,6 @@ export async function createProduct(dados: ProductInput): Promise<Product> {
   return resposta.data;
 }
 
-/**
- * Atualiza um produto. Com `version`, envia If-Match: se outra pessoa gravou
- * desde que o formulário foi aberto, a API responde 412 em vez de sobrescrever.
- */
 export async function updateProduct(id: string, dados: ProductInput, version?: number): Promise<Product> {
   const headers = version !== undefined ? { 'If-Match': `"${version}"` } : {};
   const resposta = await api.put<Product>(`/products/${id}`, dados, { headers });

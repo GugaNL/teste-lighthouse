@@ -1,16 +1,5 @@
 import axios from 'axios';
 
-/**
- * Cliente HTTP único da aplicação.
- *
- * Toda chamada passa por aqui, e todo erro sai daqui no mesmo formato
- * (ApiError) — nenhum componente precisa saber se a falha foi rede, timeout
- * ou validação para mostrar uma mensagem útil.
- *
- * Base vazia de propósito: em dev o Vite faz proxy para a 4008 e em produção o
- * próprio backend serve este SPA. VITE_API_URL só existe para o caso de o
- * frontend ser hospedado separado da API.
- */
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '',
   timeout: 15000,
@@ -30,7 +19,6 @@ export interface ApiErrorInit {
   canceled?: boolean;
 }
 
-/** Erro normalizado de qualquer chamada à API. */
 export class ApiError extends Error {
   readonly status: number;
   readonly details: ApiFieldError[];
@@ -46,7 +34,6 @@ export class ApiError extends Error {
     this.canceled = canceled;
   }
 
-  /** { campo: mensagem } — o formato que o formulário consome. */
   get fieldErrors(): Record<string, string> {
     return Object.fromEntries(this.details.map((d) => [d.field, d.message]));
   }
@@ -81,7 +68,6 @@ const ehDetalheDeCampo = (valor: unknown): valor is ApiFieldError => {
   return typeof field === 'string' && typeof message === 'string';
 };
 
-/** Traduz qualquer falha do axios para ApiError com mensagem pronta para a tela. */
 export function toApiError(erro: unknown): ApiError {
   if (erro instanceof ApiError) return erro;
   const falha = comoObjeto<FalhaHttp>(erro);

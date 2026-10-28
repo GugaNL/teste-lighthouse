@@ -29,17 +29,6 @@ export interface ProductFormProps {
   alert?: ReactNode;
 }
 
-/**
- * Formulário único de produto — o MESMO para criar e para editar.
- *
- * Quem decide o que "salvar" significa é a página, via `onSubmit(payload)`:
- * a criação chama POST, a edição chama PUT. O formulário só cuida do que é
- * comum aos dois: valores, validação no cliente, estado de envio e a exibição
- * dos erros que voltarem da API (campo a campo, quando ela os detalha).
- *
- * `onSubmit` deve rejeitar com ApiError para o formulário mostrar o erro;
- * resolver significa que a página assumiu daqui (navegou, abriu um aviso...).
- */
 export default function ProductForm({
   initialProduct,
   categories = [],
@@ -62,8 +51,6 @@ export default function ProductForm({
   } = useForm<ProductFormValues, unknown, ProductInput>({
     defaultValues: toFormValues(initialProduct),
     resolver: zodResolver(productFormSchema),
-    // Revalida enquanto digita só depois que o campo já foi visitado ou já tem
-    // erro — ninguém quer ver "obrigatório" na primeira tecla.
     mode: 'onTouched',
     shouldFocusError: false,
   });
@@ -73,8 +60,6 @@ export default function ProductForm({
     ({ nextLocation }) => isDirty && !isSubmitting && !readRouteState(nextLocation.state).highlightId
   );
 
-  // O foco vai para o primeiro campo inválido — mas só depois que o fieldset
-  // volta a ficar habilitado: input desabilitado (durante o envio) não recebe foco.
   const focarEm = useRef<ProductField | null>(null);
   const marcarPrimeiroInvalido = (encontrados: Partial<Record<ProductField, unknown>>) => {
     focarEm.current = ORDEM_DOS_CAMPOS.find((campo) => encontrados[campo]) ?? null;
@@ -90,8 +75,6 @@ export default function ProductForm({
       await onSubmit(payload);
     } catch (falha) {
       const erro = toApiError(falha);
-      // A API valida de novo; se ela recusar algum campo, a mensagem dela vai
-      // para baixo do campo certo, igual à validação local.
       const porCampo = Object.entries(erro.fieldErrors).filter(([campo]) => ehCampo(campo));
       for (const [campo, mensagem] of porCampo)
         setError(campo as ProductField, { type: 'server', message: mensagem });

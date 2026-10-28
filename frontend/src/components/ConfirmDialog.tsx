@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef } from 'react';
-import type { KeyboardEvent, MouseEvent, ReactNode, SyntheticEvent } from 'react';
+import type { ReactNode } from 'react';
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -15,13 +15,6 @@ export interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
-/**
- * Diálogo de confirmação reaproveitável (exclusão, descartar alterações...).
- *
- * Acessível sem biblioteca: role="alertdialog", foco inicial no botão de
- * CANCELAR (o seguro, para Enter acidental não apagar nada), Tab preso dentro
- * do diálogo, Esc fecha e o foco volta para quem abriu.
- */
 export default function ConfirmDialog({
   open,
   title,
@@ -52,44 +45,57 @@ export default function ConfirmDialog({
     };
   }, [open]);
 
+  useEffect(() => {
+    const dialogo = dialogoRef.current;
+    if (!open || !dialogo) return undefined;
+
+    const pedirParaFechar = () => {
+      if (!busy) onCancel();
+    };
+
+    const aoCancelarNativo = (evento: Event) => {
+      evento.preventDefault();
+      pedirParaFechar();
+    };
+
+    const aoTeclar = (evento: KeyboardEvent) => {
+      if (evento.key === 'Escape') {
+        evento.preventDefault();
+        evento.stopPropagation();
+        pedirParaFechar();
+        return;
+      }
+      if (evento.key !== 'Tab') return;
+      const focaveis = dialogo.querySelectorAll<HTMLButtonElement>('button:not([disabled])');
+      const primeiro = focaveis[0];
+      const ultimo = focaveis[focaveis.length - 1];
+      if (!primeiro || !ultimo) return;
+      if (evento.shiftKey && document.activeElement === primeiro) {
+        evento.preventDefault();
+        ultimo.focus();
+      } else if (!evento.shiftKey && document.activeElement === ultimo) {
+        evento.preventDefault();
+        primeiro.focus();
+      }
+    };
+
+    const aoClicar = (evento: MouseEvent) => {
+      if (evento.target === dialogo) pedirParaFechar();
+    };
+
+    dialogo.addEventListener('cancel', aoCancelarNativo);
+    dialogo.addEventListener('keydown', aoTeclar);
+    dialogo.addEventListener('click', aoClicar);
+    return () => {
+      dialogo.removeEventListener('cancel', aoCancelarNativo);
+      dialogo.removeEventListener('keydown', aoTeclar);
+      dialogo.removeEventListener('click', aoClicar);
+    };
+  }, [open, busy, onCancel]);
+
   if (!open) return null;
 
-  const pedirParaFechar = () => {
-    if (!busy) onCancel();
-  };
-
-  const aoCancelarNativo = (evento: SyntheticEvent<HTMLDialogElement>) => {
-    evento.preventDefault();
-    pedirParaFechar();
-  };
-
-  const aoTeclar = (evento: KeyboardEvent<HTMLDialogElement>) => {
-    if (evento.key === 'Escape') {
-      evento.preventDefault();
-      evento.stopPropagation();
-      pedirParaFechar();
-      return;
-    }
-    if (evento.key !== 'Tab' || !dialogoRef.current) return;
-    const focaveis = dialogoRef.current.querySelectorAll<HTMLButtonElement>('button:not([disabled])');
-    const primeiro = focaveis[0];
-    const ultimo = focaveis[focaveis.length - 1];
-    if (!primeiro || !ultimo) return;
-    if (evento.shiftKey && document.activeElement === primeiro) {
-      evento.preventDefault();
-      ultimo.focus();
-    } else if (!evento.shiftKey && document.activeElement === ultimo) {
-      evento.preventDefault();
-      primeiro.focus();
-    }
-  };
-
-  const aoClicar = (evento: MouseEvent<HTMLDialogElement>) => {
-    if (evento.target === evento.currentTarget) pedirParaFechar();
-  };
-
   return (
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <dialog
       ref={dialogoRef}
       className="modal"
@@ -97,9 +103,6 @@ export default function ConfirmDialog({
       aria-modal="true"
       aria-labelledby={tituloId}
       aria-describedby={descricaoId}
-      onCancel={aoCancelarNativo}
-      onKeyDown={aoTeclar}
-      onClick={aoClicar}
     >
       <div className="modal__caixa">
         <h2 id={tituloId} className="modal__titulo">

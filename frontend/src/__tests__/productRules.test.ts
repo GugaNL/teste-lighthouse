@@ -4,8 +4,6 @@ import type { ProductFormValues } from '../schemas/productSchema';
 import { stockStatus, toFormValues } from '../utils/productRules';
 import type { Product, ProductField } from '../types/product';
 
-// Mesmos casos-limite e mensagens de backend/__tests__/product.test.js: se a
-// regra mudar de um lado, o teste do outro lado acusa.
 const valido: ProductFormValues = {
   name: 'Fone Bluetooth',
   description: '',

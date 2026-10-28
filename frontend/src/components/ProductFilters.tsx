@@ -32,7 +32,6 @@ export interface ProductFiltersProps {
   onClear: () => void;
 }
 
-/** Barra de busca, filtros e ordenação da listagem (controlada pela página). */
 export default function ProductFilters({
   search,
   onSearchChange,

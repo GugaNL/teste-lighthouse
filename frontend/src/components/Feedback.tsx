@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react';
 
-/** Blocos de estado reaproveitados em todas as telas: carregando, erro e vazio. */
-
 export interface LoadingProps {
   text?: string;
 }

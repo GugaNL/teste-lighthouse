@@ -23,10 +23,6 @@ interface ErrorBoundaryState {
   erro: unknown;
 }
 
-/**
- * Rede de segurança para erro de renderização: em vez de tela branca, uma
- * mensagem com saída. Erros de API não chegam aqui — são tratados nas telas.
- */
 export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   override state: ErrorBoundaryState = { erro: null };
 
