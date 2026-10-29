@@ -1,6 +1,6 @@
 # Catálogo de Produtos — Gerenciamento de Catálogo
 
-Aplicação fullstack para o vendedor gerenciar o catálogo de produtos: **API REST em Node.js (Express 5) + MongoDB (Mongoose)** e **frontend em React 18 (Vite)**.
+Aplicação fullstack para o vendedor gerenciar o catálogo de produtos: **API REST em Node.js (Express 5) + MongoDB (Mongoose)** e **frontend em React 18 + TypeScript (Vite)**.
 
 Solução do desafio técnico [`occ-react-node`](https://gitlab.com/lighthouseit/testes-tecnicos/occ-react-node).
 
@@ -35,7 +35,7 @@ Solução do desafio técnico [`occ-react-node`](https://gitlab.com/lighthouseit
 | `GET /products/:id` retorna por ID | ✅ | `ProductController.getById` (404 se não existe, 400 se o ID é inválido) |
 | `POST /products` cria | ✅ | `ProductController.create` (201 + `Location`) |
 | `PUT /products/:id` atualiza | ✅ | `ProductController.update` (200 / 400 / 404 / 412) |
-| `DELETE /products/:id` remove | ✅ | `ProductController.remove` (204 / 404) |
+| `DELETE /products/:id` remove | ✅ | `ProductController.remove` (204 / 400 / 404), com exclusão lógica e "Desfazer" |
 | `name` obrigatório, 3 a 120 caracteres | ✅ | Joi em [`validation/product.js`](backend/src/app/validation/product.js) + schema Mongoose + testes |
 | `price` número positivo maior que 0 | ✅ | idem (também recusa texto, `null` e mais de 2 casas decimais) |
 | `stock` inteiro ≥ 0 | ✅ | idem (recusa fracionado e negativo) |
@@ -70,7 +70,7 @@ docker compose up --build
 - Aplicação (site + API): **http://localhost:4008**
 - Documentação interativa da API: **http://localhost:4008/docs**
 
-Sobe o MongoDB e a aplicação num container só (o backend serve a API e o build do React). Na primeira subida o catálogo de demonstração é criado automaticamente.
+Sobe dois containers: o MongoDB e a aplicação (o backend serve a API e o build do React no mesmo container e na mesma porta). Na primeira subida o catálogo de demonstração é criado automaticamente.
 
 ### Opção B — Local, sem instalar MongoDB
 
@@ -85,6 +85,8 @@ npm run dev     # sobe banco, API e frontend juntos
 | API | http://localhost:4008 |
 | Swagger | http://localhost:4008/docs |
 | MongoDB local | `mongodb://127.0.0.1:27022` |
+
+O `npm run setup` só cria `backend/.env` e `frontend/.env` se eles ainda não existirem. O `npm run dev` usa as portas **4008**, **5181** e **27022** (precisam estar livres) e para tudo junto com <kbd>Ctrl</kbd>+<kbd>C</kbd>.
 
 O banco de desenvolvimento roda via [`mongodb-memory-server`](https://github.com/typegoose/mongodb-memory-server) com os dados persistidos em `backend/.localdb` — não é preciso instalar o MongoDB. Na **primeira** execução ele baixa o binário do `mongod` (~70 MB). A API cria o catálogo de demonstração se o banco estiver vazio; para recriá-lo do zero: `npm run seed`.
 
@@ -108,9 +110,10 @@ npm --prefix frontend run dev
 | `npm run dev` | Banco + API + frontend com recarga automática |
 | `npm run seed` | **Apaga** os produtos e recria o catálogo de demonstração |
 | `npm test` | Testes do backend (Jest) e do frontend (Vitest) |
+| `npm run lint` | ESLint e typecheck (`tsc`) do frontend |
 | `npm run test:api` | Roda a coleção Postman (Newman) contra a API no ar |
-| `npm run build` | Build de produção do frontend |
-| `npm start` | API em modo produção (serve o build do frontend, se existir) |
+| `npm run build` | Build de produção do frontend (em `frontend/dist`) |
+| `npm start` | API sem recarga automática, servindo também o build do frontend em http://localhost:4008 (rode `npm run build` antes; precisa do MongoDB no ar — em dev, `npm --prefix backend run db`) |
 
 ---
 
@@ -243,7 +246,7 @@ Todo erro tem o mesmo corpo, com mensagens em português prontas para a tela:
 
 | Código | Quando |
 | :---: | :--- |
-| `200` | Leitura ou atualização bem-sucedida |
+| `200` | Leitura, atualização, restauração ou operação em lote bem-sucedida |
 | `201` | Produto criado (com cabeçalho `Location: /products/:id`) |
 | `204` | Produto removido (sem corpo) |
 | `400` | Corpo inválido, JSON malformado, ID fora do formato, parâmetro de listagem inválido ou `If-Match` ilegível |
@@ -337,7 +340,7 @@ Quando a API recusa algo que passou no cliente, o formulário mostra a mensagem 
 - **Sincronização do estado**: depois de criar, editar ou excluir, as mutations **invalidam** listas e indicadores (o servidor é a fonte da verdade) e gravam o produto salvo no cache; o item volta destacado na lista. Excluir o último item de uma página volta para a página anterior; excluir algo que outra pessoa já excluiu (`404`) é tratado como sucesso. A edição sempre confere o servidor ao abrir (a versão importa para o `If-Match`) e não recarrega sozinha no meio da digitação.
 - **Formulário com react-hook-form + zod**: o esquema ([`productSchema.ts`](frontend/src/schemas/productSchema.ts)) valida com as mesmas mensagens da API e sua saída já é o corpo da requisição (texto normalizado, estoque em número). Valida ao sair do campo e, depois, a cada tecla; o foco vai para o primeiro campo inválido; erros por campo vindos da API aparecem no campo certo.
 - **Alterações não salvas**: com o roteador de dados, o `useBlocker` pede confirmação em qualquer saída do formulário — Cancelar, "← Voltar", links do topo e o voltar do navegador — e o `beforeunload` cobre fechar/recarregar a aba.
-- **Estado na URL**: busca, filtro, ordenação e página ficam na query string (`/?busca=fone&ordem=-price`) — recarregar, voltar no navegador ou compartilhar o link mostra a mesma lista. A lógica fica em [`useProductFilters`](frontend/src/hooks/useProductFilters.ts); exclusão e exportação também saíram da página para hooks próprios (`useProductDeletion`, `useCsvExport`).
+- **Estado na URL**: busca, categoria, faixa de estoque, faixa de preço, ordenação, página e itens por página ficam na query string (`/?busca=fone&estoque=baixo&ordem=-price`) — recarregar, voltar no navegador ou compartilhar o link mostra a mesma lista. A lógica fica em [`useProductFilters`](frontend/src/hooks/useProductFilters.ts); exclusão, seleção, ações em lote e exportação também saíram da página para hooks próprios (`useProductDeletion`, `useProductSelection`, `useBulkActions`, `useCsvExport`).
 - **Carregamento sob demanda**: as telas de formulário (com zod e react-hook-form) ficam num pacote separado, baixado só ao abrir o formulário; a listagem não carrega esse código.
 - **Acessibilidade**: rótulos ligados aos campos, `aria-invalid` + `aria-describedby` nos erros, foco no primeiro campo inválido, diálogo com `<dialog>` nativo (o resto da página fica inerte) com foco no botão seguro e Tab preso, **foco no título da página e título da aba a cada troca de tela**, rolagem restaurada, toasts em região `aria-live`, link "pular para o conteúdo", estado de estoque com texto (não só cor) e `prefers-reduced-motion`. O `eslint-plugin-jsx-a11y` confere a marcação no CI.
 - **Visual**: cores definidas como tokens nomeados pela função (`--fundo`, `--primaria`, `--texto`…), **tema escuro** que segue o sistema operacional e pode ser alternado no topo (só os tokens mudam), fonte Inter servida pelo próprio app (sem Google Fonts), números tabulares; no celular a tabela vira cartões só com CSS.
@@ -391,17 +394,19 @@ A fronteira é o `export`: quem importa um módulo lê uma API em inglês, como 
 │       ├── hooks/                    # useProductFilters, useProductDeletion, useCsvExport, useDocumentTitle…
 │       ├── components/               # ProductForm, ProductTable, ConfirmDialog, FormField, Feedback…
 │       ├── pages/                    # ProductList, ProductCreate, ProductEdit, NotFound
-│       ├── context/                  # ToastContext
+│       ├── context/                  # ToastContext (provider) e toast.ts (useToast)
 │       ├── utils/                    # limites do produto, formatação, CSV
 │       ├── styles/                   # main.scss (tokens de cor, tema claro e escuro)
 │       ├── test/                     # setup do Vitest e renderWithProviders
 │       ├── routes.tsx                # rotas (formulários sob demanda)
 │       └── __tests__/                # Vitest + Testing Library
 ├── docs/screenshots/
+├── scripts/env.js                    # cria os .env no npm run setup
+├── .env.example                      # variáveis do docker-compose.yml
 ├── Dockerfile                        # multi-stage: build do React + runtime da API
 ├── docker-compose.yml                # app + mongo
-├── .github/workflows/ci.yml          # testes + build (GitHub Actions)
-└── .gitlab-ci.yml                    # mesmo pipeline no GitLab
+├── .github/workflows/ci.yml          # testes, lint, build e imagem Docker (GitHub Actions)
+└── .gitlab-ci.yml                    # testes, lint e build no GitLab
 ```
 
 ---
@@ -419,7 +424,7 @@ npm run test:api    # coleção Postman contra a API no ar (npm run dev antes)
 | Frontend | Vitest + Testing Library | **73** | Esquema zod (mesmos casos da API); `ApiError` para cada tipo de falha; `ProductForm` criando e editando, erro da API no campo certo, estado de envio, descarte com confirmação no Cancelar, no voltar do navegador e nenhuma depois de salvar; `ConfirmDialog` (foco, Esc, Tab, clique no fundo, ocupado); `ProductList` com carregando, erro + tentar de novo, vazio, exclusão confirmada/cancelada/falhando, desfazer exclusão, busca com debounce, filtros de estoque e preço, tamanho da página, atalho `/` e ações em lote (seleção, excluir com desfazer, mudar categoria, exportar selecionados); `Layout` com atalho `N` e alternância de tema |
 | Contrato | Postman / Newman | **15 req. / 17 asserções** | Fluxo ponta a ponta contra a API real: criar → listar → buscar → atualizar → conflito → remover → 404 |
 
-O CI ([GitHub Actions](.github/workflows/ci.yml) e [GitLab CI](.gitlab-ci.yml)) roda as duas suítes; no frontend, também Prettier (`format:check`), ESLint e o typecheck (`tsc`, dentro do build); por fim, o build da imagem Docker.
+O CI ([GitHub Actions](.github/workflows/ci.yml) e [GitLab CI](.gitlab-ci.yml)) roda as duas suítes; no frontend, também Prettier (`format:check`), ESLint e o typecheck (`tsc`, dentro do build). No GitHub Actions, por fim, a imagem Docker também é construída.
 
 ```bash
 cd frontend
@@ -440,8 +445,8 @@ npm run format:check  # Prettier
 - 🏷️ **Selo de estoque**: "Em estoque", "Estoque baixo" (≤ 5) e "Esgotado".
 - 🔒 **Concorrência otimista** (`ETag`/`If-Match` → `412`), com opção de recarregar ou salvar a sua versão.
 - 💰 **Campo de preço com máscara BRL** e **sugestões de categoria** (datalist com as existentes).
-- 📤 **Exportar CSV** do resultado filtrado (separador `;` e BOM para abrir direto no Excel em português).
-- ⚠️ **Aviso de alterações não salvas** (ao fechar a aba e ao cancelar o formulário).
+- 📤 **Exportar CSV** do resultado filtrado ou só dos selecionados (separador `;` e BOM para abrir direto no Excel em português).
+- ⚠️ **Aviso de alterações não salvas** em qualquer saída do formulário (Cancelar, "← Voltar", links do topo, botão voltar do navegador) e ao fechar a aba.
 - 📚 **Swagger UI** a partir do contrato OpenAPI + **coleção Postman** com testes.
 - 🐳 **Docker** em um comando, com healthcheck, usuário não-root e seed automático.
 - 🧪 **188 testes automatizados** + contrato Newman, e **CI** para GitHub e GitLab (com lint, typecheck e formatação).
