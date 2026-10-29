@@ -5,7 +5,7 @@ const { createHash } = require('crypto');
 const request = require('supertest');
 const { start, stop } = require('./helpers/testServer');
 
-const SCRIPT_DO_TEMA = "document.documentElement.dataset.theme = 'dark';";
+const SCRIPT_DO_TEMA = "\n  document.documentElement.dataset.theme = 'dark';\n";
 let app;
 let pastaDoFrontend;
 
@@ -13,7 +13,7 @@ beforeAll(async () => {
   pastaDoFrontend = fs.mkdtempSync(path.join(os.tmpdir(), 'frontend-'));
   fs.writeFileSync(
     path.join(pastaDoFrontend, 'index.html'),
-    `<!doctype html><html><head><script>${SCRIPT_DO_TEMA}</script><script type="module" src="/assets/app.js"></script></head></html>`
+    `<!doctype html><html><head><script>${SCRIPT_DO_TEMA.replace(/\n/g, '\r\n')}</script><script type="module" src="/assets/app.js"></script></head></html>`
   );
   process.env.RATE_LIMIT_WRITES_PER_MINUTE = '2';
   app = await start({ frontendDir: pastaDoFrontend });
@@ -25,7 +25,7 @@ afterAll(async () => {
 });
 
 describe('segurança e rastreio', () => {
-  it('envia CSP que libera só o script inline do build, pelo hash', async () => {
+  it('envia CSP que libera só o script inline do build, pelo hash, mesmo com quebras CRLF', async () => {
     const res = await request(app).get('/');
     const csp = res.headers['content-security-policy'];
     const hash = createHash('sha256').update(SCRIPT_DO_TEMA).digest('base64');

@@ -24,7 +24,7 @@ const METODOS_DE_LEITURA = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 const hashesDosScriptsInline = (html) =>
   [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(
-    ([, codigo]) => `'sha256-${createHash('sha256').update(codigo).digest('base64')}'`
+    ([, codigo]) => `'sha256-${createHash('sha256').update(codigo.replace(/\r\n?/g, '\n')).digest('base64')}'`
   );
 
 const origensDoCors = (valor) => {

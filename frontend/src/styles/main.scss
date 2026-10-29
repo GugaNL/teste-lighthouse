@@ -1471,12 +1471,11 @@ kbd {
 
   .indicador {
     padding: 12px 12px 12px 16px;
+    container-type: inline-size;
   }
 
   .indicador__valor {
-    font-size: 20px;
-    white-space: normal;
-    overflow-wrap: anywhere;
+    font-size: clamp(14px, 13cqi, 20px);
     min-height: 0;
   }
 

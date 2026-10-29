@@ -14,4 +14,11 @@ if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.sho
 
 window.scrollTo = () => {};
 
+const RequestNativo = globalThis.Request;
+globalThis.Request = class Request extends RequestNativo {
+  constructor(input: RequestInfo | URL, init?: RequestInit) {
+    super(input, init && { ...init, signal: null });
+  }
+};
+
 afterEach(() => cleanup());

@@ -14,65 +14,22 @@ Solução do desafio técnico [`occ-react-node`](https://gitlab.com/lighthouseit
 
 ## Sumário
 
-1. [Checklist do desafio](#1-checklist-do-desafio)
-2. [Guia de execução](#2-guia-de-execução)
+1. [Guia de execução](#1-guia-de-execução)
+2. [Checklist do desafio](#2-checklist-do-desafio)
 3. [Variáveis de ambiente](#3-variáveis-de-ambiente)
 4. [Documentação da API](#4-documentação-da-api)
 5. [Decisões técnicas](#5-decisões-técnicas)
 6. [Estrutura de pastas](#6-estrutura-de-pastas)
 7. [Testes](#7-testes)
 8. [Além do pedido](#8-além-do-pedido)
-9. [Limitações e próximos passos](#9-limitações-e-próximos-passos)
 
 ---
 
-## 1. Checklist do desafio
+## 1. Guia de execução
 
-| Requisito | Status | Onde |
-| :--- | :---: | :--- |
-| **Backend** com Express, Fastify ou NestJS | ✅ | Express 5 — [`backend/src/app.js`](backend/src/app.js) |
-| `GET /products` lista todos | ✅ | [`product.router.js`](backend/src/routes/product.router.js) → [`ProductController.getAll`](backend/src/app/controller/ProductController.js) |
-| `GET /products/:id` retorna por ID | ✅ | `ProductController.getById` (404 se não existe, 400 se o ID é inválido) |
-| `POST /products` cria | ✅ | `ProductController.create` (201 + `Location`) |
-| `PUT /products/:id` atualiza | ✅ | `ProductController.update` (200 / 400 / 404 / 412) |
-| `DELETE /products/:id` remove | ✅ | `ProductController.remove` (204 / 400 / 404): some na hora de todas as leituras e é apagado do banco após o prazo da lixeira (padrão 10 min), com "Desfazer" até lá |
-| `name` obrigatório, 3 a 120 caracteres | ✅ | Joi em [`validation/product.js`](backend/src/app/validation/product.js) + schema Mongoose + testes |
-| `price` número positivo maior que 0 | ✅ | idem (também recusa texto, `null` e mais de 2 casas decimais) |
-| `stock` inteiro ≥ 0 | ✅ | idem (recusa fracionado e negativo) |
-| `category` obrigatória e não vazia | ✅ | idem (recusa vazio e só espaços) |
-| Banco **MongoDB via Mongoose** | ✅ | [`ProductSchema.js`](backend/src/app/schema/ProductSchema.js) |
-| **Frontend** React: listagem consumindo a API | ✅ | [`pages/ProductList.tsx`](frontend/src/pages/ProductList.tsx) |
-| Formulário de criação **e** edição (Nome, Descrição, Preço, Estoque, Categoria) | ✅ | **Um único** [`ProductForm`](frontend/src/components/ProductForm.tsx) usado por [`ProductCreate`](frontend/src/pages/ProductCreate.tsx) e [`ProductEdit`](frontend/src/pages/ProductEdit.tsx) |
-| Exclusão com confirmação prévia | ✅ | [`ConfirmDialog`](frontend/src/components/ConfirmDialog.tsx) acessível (`<dialog>` nativo modal, foco no "Cancelar", Esc, Tab preso) |
-| Feedback de **Loading** | ✅ | esqueleto na primeira carga, lista esmaecida ao recarregar, botões "Salvando…/Excluindo…", [`Feedback.tsx`](frontend/src/components/Feedback.tsx) |
-| Feedback de **Erro** | ✅ | erro por campo, alerta no formulário, bloco "Tentar de novo", erro dentro do diálogo e toasts |
-| Organização: Rotas, Controllers, Lógica separados | ✅ | `routes → validation → controller → service → repository → schema` + `rules/` puras |
-| HTTP centralizado, `try/catch`, estado sincronizado | ✅ | [`services/api.ts`](frontend/src/services/api.ts) + [`productService.ts`](frontend/src/services/productService.ts) + [`productQueries.ts`](frontend/src/queries/productQueries.ts) |
-| Status HTTP corretos e mensagens úteis | ✅ | 200, 201, 204, 400, 404, 412, 413, 500 — [tabela](#códigos-de-status) |
-| Reutilização (mesmo formulário para Create/Edit) | ✅ | `ProductForm`, `FormField`, `ConfirmDialog`, `Feedback`, `productQueries` |
-| README: guia de execução | ✅ | [seção 2](#2-guia-de-execução) |
-| README: decisões técnicas | ✅ | [seção 5](#5-decisões-técnicas) |
-| `.env.example` | ✅ | [`backend/.env.example`](backend/.env.example), [`frontend/.env.example`](frontend/.env.example), [`.env.example`](.env.example) (Docker) |
-| README: documentação da API | ✅ | [seção 4](#4-documentação-da-api) + Swagger em `/docs` + [coleção Postman](backend/docs/postman_collection.json) |
+> Pré-requisito: **Node.js 22+** (ou só **Docker**, na opção B).
 
----
-
-## 2. Guia de execução
-
-> Pré-requisito: **Node.js 22+** (ou só **Docker**, na opção A).
-
-### Opção A — Docker (um comando)
-
-```bash
-docker compose up --build
-```
-
-- Aplicação (site + API): **http://localhost:4008**
-- Documentação interativa da API: **http://localhost:4008/docs**
-
-Sobe dois containers: o MongoDB e a aplicação (o backend serve a API e o build do React no mesmo container e na mesma porta). Na primeira subida o catálogo de demonstração é criado automaticamente.
-
-### Opção B — Local, sem instalar MongoDB
+### Opção A — Local, sem instalar MongoDB
 
 ```bash
 npm run setup   # instala raiz, backend e frontend e cria os .env a partir dos .env.example
@@ -89,6 +46,17 @@ npm run dev     # sobe banco, API e frontend juntos
 O `npm run setup` só cria `backend/.env` e `frontend/.env` se eles ainda não existirem. O `npm run dev` usa as portas **4008**, **5181** e **27022** (precisam estar livres) e para tudo junto com <kbd>Ctrl</kbd>+<kbd>C</kbd>.
 
 O banco de desenvolvimento roda via [`mongodb-memory-server`](https://github.com/typegoose/mongodb-memory-server) com os dados persistidos em `backend/.localdb` — não é preciso instalar o MongoDB. Na **primeira** execução ele baixa o binário do `mongod` (~70 MB). A API cria o catálogo de demonstração se o banco estiver vazio; para recriá-lo do zero: `npm run seed`.
+
+### Opção B — Docker (um comando)
+
+```bash
+docker compose up --build
+```
+
+- Aplicação (site + API): **http://localhost:4008**
+- Documentação interativa da API: **http://localhost:4008/docs**
+
+Sobe dois containers: o MongoDB e a aplicação (o backend serve a API e o build do React no mesmo container e na mesma porta). Na primeira subida o catálogo de demonstração é criado automaticamente.
 
 ### Opção C — Com um MongoDB seu (local, Atlas, Docker)
 
@@ -115,6 +83,37 @@ npm --prefix frontend run dev
 | `npm run test:api` | Roda a coleção Postman (Newman) contra a API no ar |
 | `npm run build` | Build de produção do frontend (em `frontend/dist`) |
 | `npm start` | API sem recarga automática, servindo também o build do frontend em http://localhost:4008 (rode `npm run build` antes; precisa do MongoDB no ar — em dev, `npm --prefix backend run db`) |
+
+---
+
+## 2. Checklist do desafio
+
+| Requisito | Status | Onde |
+| :--- | :---: | :--- |
+| **Backend** com Express, Fastify ou NestJS | ✅ | Express 5 — [`backend/src/app.js`](backend/src/app.js) |
+| `GET /products` lista todos | ✅ | [`product.router.js`](backend/src/routes/product.router.js) → [`ProductController.getAll`](backend/src/app/controller/ProductController.js) |
+| `GET /products/:id` retorna por ID | ✅ | `ProductController.getById` (404 se não existe, 400 se o ID é inválido) |
+| `POST /products` cria | ✅ | `ProductController.create` (201 + `Location`) |
+| `PUT /products/:id` atualiza | ✅ | `ProductController.update` (200 / 400 / 404 / 412) |
+| `DELETE /products/:id` remove | ✅ | `ProductController.remove` (204 / 400 / 404): some na hora de todas as leituras e é apagado do banco após o prazo da lixeira (padrão 10 min), com "Desfazer" até lá |
+| `name` obrigatório, 3 a 120 caracteres | ✅ | Joi em [`validation/product.js`](backend/src/app/validation/product.js) + schema Mongoose + testes |
+| `price` número positivo maior que 0 | ✅ | idem (também recusa texto, `null` e mais de 2 casas decimais) |
+| `stock` inteiro ≥ 0 | ✅ | idem (recusa fracionado e negativo) |
+| `category` obrigatória e não vazia | ✅ | idem (recusa vazio e só espaços) |
+| Banco **MongoDB via Mongoose** | ✅ | [`ProductSchema.js`](backend/src/app/schema/ProductSchema.js) |
+| **Frontend** React: listagem consumindo a API | ✅ | [`pages/ProductList.tsx`](frontend/src/pages/ProductList.tsx) |
+| Formulário de criação **e** edição (Nome, Descrição, Preço, Estoque, Categoria) | ✅ | **Um único** [`ProductForm`](frontend/src/components/ProductForm.tsx) usado por [`ProductCreate`](frontend/src/pages/ProductCreate.tsx) e [`ProductEdit`](frontend/src/pages/ProductEdit.tsx) |
+| Exclusão com confirmação prévia | ✅ | [`ConfirmDialog`](frontend/src/components/ConfirmDialog.tsx) acessível (`<dialog>` nativo modal, foco no "Cancelar", Esc, Tab preso) |
+| Feedback de **Loading** | ✅ | esqueleto na primeira carga, lista esmaecida ao recarregar, botões "Salvando…/Excluindo…", [`Feedback.tsx`](frontend/src/components/Feedback.tsx) |
+| Feedback de **Erro** | ✅ | erro por campo, alerta no formulário, bloco "Tentar de novo", erro dentro do diálogo e toasts |
+| Organização: Rotas, Controllers, Lógica separados | ✅ | `routes → validation → controller → service → repository → schema` + `rules/` puras |
+| HTTP centralizado, `try/catch`, estado sincronizado | ✅ | [`services/api.ts`](frontend/src/services/api.ts) + [`productService.ts`](frontend/src/services/productService.ts) + [`productQueries.ts`](frontend/src/queries/productQueries.ts) |
+| Status HTTP corretos e mensagens úteis | ✅ | 200, 201, 204, 400, 404, 412, 413, 500 — [tabela](#códigos-de-status) |
+| Reutilização (mesmo formulário para Create/Edit) | ✅ | `ProductForm`, `FormField`, `ConfirmDialog`, `Feedback`, `productQueries` |
+| README: guia de execução | ✅ | [seção 1](#1-guia-de-execução) |
+| README: decisões técnicas | ✅ | [seção 5](#5-decisões-técnicas) |
+| `.env.example` | ✅ | [`backend/.env.example`](backend/.env.example), [`frontend/.env.example`](frontend/.env.example), [`.env.example`](.env.example) (Docker) |
+| README: documentação da API | ✅ | [seção 4](#4-documentação-da-api) + Swagger em `/docs` + [coleção Postman](backend/docs/postman_collection.json) |
 
 ---
 
@@ -481,14 +480,3 @@ npm run test:coverage  # só no backend: testes + meta de cobertura
 - 🛡️ CSP com hash do script inline, CORS fechado em produção, limite de escritas por minuto, limite de corpo (100 KB), regex de busca escapada (sem injeção de padrão), configuração validada na subida e mensagens internas que nunca vazam no `500`.
 - 📜 Logs estruturados (pino) com `X-Request-Id` por requisição.
 - ♿ Acessibilidade e layout responsivo (tabela vira cartões no celular).
-
----
-
-## 9. Limitações e próximos passos
-
-- **Autenticação/autorização** não fazia parte do escopo; o caminho natural seria JWT com papéis protegendo as rotas de escrita.
-- **Lixeira sem tela própria**: depois que o aviso de "Desfazer" some, restaurar um produto só é possível pela API (`POST /products/:id/restore`), e só dentro do prazo da lixeira. Se o prazo crescer (dias, por exemplo), caberia uma tela de lixeira.
-- **`GET /products` sem paginação devolve o catálogo inteiro**, como pede o desafio. Em produção caberia um teto ou paginação obrigatória (e streaming na exportação CSV).
-- **Limite de escritas em memória**: conta por processo; com várias instâncias, o contador iria para um armazenamento compartilhado (Redis). Atrás de proxy reverso, seria preciso configurar o `trust proxy` do Express para ler o IP real.
-- **Busca por regex** atende bem um catálogo de milhares de itens; para volumes maiores, índice de texto ou Atlas Search.
-- **Imagens do produto** e **SKU** ficariam como próximos campos do modelo.
