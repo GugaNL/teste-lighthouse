@@ -80,6 +80,28 @@ describe('POST /products/batch/restore', () => {
     expect(res.body).toEqual({ restored: 1 });
     expect(await nomesListados()).toEqual(['Produto A', 'Produto B']);
   });
+
+  it('alinha a grafia da categoria dos restaurados com a que está em uso', async () => {
+    const a = await criar({ name: 'Produto A', category: 'casa' });
+    const b = await criar({ name: 'Produto B', category: 'casa' });
+    const c = await criar({ name: 'Produto C', category: 'Esporte' });
+    await request(app)
+      .post('/products/batch/delete')
+      .send({ ids: [a.id, b.id, c.id] });
+    await criar({ name: 'Produto D', category: 'Casa' });
+
+    await request(app)
+      .post('/products/batch/restore')
+      .send({ ids: [a.id, b.id, c.id] });
+
+    const lista = (await request(app).get('/products').query({ sort: 'name' })).body;
+    expect(lista.map((p) => [p.name, p.category])).toEqual([
+      ['Produto A', 'Casa'],
+      ['Produto B', 'Casa'],
+      ['Produto C', 'Esporte'],
+      ['Produto D', 'Casa'],
+    ]);
+  });
 });
 
 describe('POST /products/batch/category', () => {

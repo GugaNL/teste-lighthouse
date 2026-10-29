@@ -508,6 +508,21 @@ describe('POST /products/:id/restore', () => {
     expect((await request(app).get(`/products/${criado.id}`)).status).toBe(200);
   });
 
+  it('adota a grafia atual da categoria se ela mudou enquanto o produto estava excluído', async () => {
+    const { body: antigo } = await criar({ category: 'eletrônicos' });
+    await request(app).delete(`/products/${antigo.id}`);
+    await criar({ name: 'Outro produto', category: 'Eletrônicos' });
+
+    const res = await request(app).post(`/products/${antigo.id}/restore`);
+    expect(res.status).toBe(200);
+    expect(res.body.category).toBe('Eletrônicos');
+    expect(res.body.version).toBe(antigo.version + 1);
+    expect(res.headers.etag).toBe(`"${antigo.version + 1}"`);
+
+    const categorias = (await request(app).get('/categories')).body.map((c) => c.name);
+    expect(categorias).toEqual(['Eletrônicos']);
+  });
+
   it('responde 404 para produto que não está excluído', async () => {
     const { body: criado } = await criar();
     const res = await request(app).post(`/products/${criado.id}/restore`);

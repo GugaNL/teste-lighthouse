@@ -15,9 +15,11 @@ const FRONTEND_DIR =
   process.env.FRONTEND_DIR || path.resolve(__dirname, '..', '..', 'frontend', 'dist');
 
 const API_PREFIXES = ['/products', '/categories', '/docs', '/health'];
+const MONGO_CONECTADO = 1;
 
 class App {
   constructor() {
+    this.temFrontend = fs.existsSync(path.join(FRONTEND_DIR, 'index.html'));
     this.server = express();
     this.middlewares();
     this.health();
@@ -41,12 +43,12 @@ class App {
 
   health() {
     this.server.get('/health', (req, res) => {
-      res.json({
-        status: 'ok',
+      const conectado = mongoose.connection.readyState === MONGO_CONECTADO;
+      res.status(conectado ? 200 : 503).json({
+        status: conectado ? 'ok' : 'unavailable',
         produto: config.produto,
-        mongo: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+        mongo: conectado ? 'connected' : 'disconnected',
         uptime: process.uptime(),
-        env: config.nodeEnv,
       });
     });
   }
@@ -58,7 +60,7 @@ class App {
   notFound() {
     this.server.use((req, res, next) => {
       const ehApi = API_PREFIXES.some((p) => req.path === p || req.path.startsWith(`${p}/`));
-      if (!ehApi && req.method === 'GET' && fs.existsSync(path.join(FRONTEND_DIR, 'index.html'))) {
+      if (!ehApi && req.method === 'GET' && this.temFrontend) {
         return next();
       }
       return res.status(404).json({
@@ -70,7 +72,7 @@ class App {
   }
 
   frontend() {
-    if (!fs.existsSync(path.join(FRONTEND_DIR, 'index.html'))) return;
+    if (!this.temFrontend) return;
     this.server.use(express.static(FRONTEND_DIR));
     this.server.use((req, res) => res.sendFile(path.join(FRONTEND_DIR, 'index.html')));
   }

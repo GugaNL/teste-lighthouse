@@ -200,7 +200,10 @@ paths:
     post:
       tags: [Produtos]
       summary: Restaura um produto excluído
-      description: Desfaz a exclusão; o produto volta exatamente como estava (mesma versão e `updatedAt`).
+      description: |
+        Desfaz a exclusão; o produto volta como estava (mesma versão e `updatedAt`).
+        Exceção: se a categoria passou a ser gravada com outra capitalização enquanto
+        ele estava excluído, o produto adota a grafia atual e ganha uma versão nova.
       responses:
         '200':
           description: Produto restaurado
@@ -306,17 +309,19 @@ paths:
     get:
       tags: [Infra]
       summary: Health check
+      description: Usado pelo healthcheck do Docker; responde `503` quando o MongoDB não está conectado.
       responses:
         '200':
-          description: Aplicação no ar
+          description: Aplicação e banco no ar
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string, example: ok }
-                  mongo: { type: string, enum: [connected, disconnected] }
-                  uptime: { type: number, example: 12.34 }
+              schema: { $ref: '#/components/schemas/Health' }
+        '503':
+          description: Aplicação no ar, mas sem conexão com o MongoDB
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+              example: { status: unavailable, produto: Catálogo de Produtos, mongo: disconnected, uptime: 12.34 }
 
 components:
   parameters:
@@ -386,6 +391,14 @@ components:
         inventoryValue: { type: number, example: 48210.5, description: Soma de preço × estoque. }
         outOfStock: { type: integer, example: 1 }
         lowStock: { type: integer, example: 2, description: Produtos com 1 a 5 unidades. }
+
+    Health:
+      type: object
+      properties:
+        status: { type: string, enum: [ok, unavailable] }
+        produto: { type: string, example: Catálogo de Produtos }
+        mongo: { type: string, enum: [connected, disconnected] }
+        uptime: { type: number, example: 12.34 }
 
     BatchIds:
       type: object

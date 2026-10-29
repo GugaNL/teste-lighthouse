@@ -49,7 +49,8 @@ class ProductService {
   async restore(id) {
     const restaurado = await ProductRepository.restore(id);
     if (!restaurado) throw new NotFound(RECURSO);
-    return restaurado;
+    const ajustados = await this.alignCategorySpelling([id]);
+    return ajustados ? ProductRepository.getById(id) : restaurado;
   }
 
   async removeMany(ids) {
@@ -57,7 +58,26 @@ class ProductService {
   }
 
   async restoreMany(ids) {
-    return { restored: await ProductRepository.restoreMany(ids) };
+    const restored = await ProductRepository.restoreMany(ids);
+    if (restored) await this.alignCategorySpelling(ids);
+    return { restored };
+  }
+
+  async alignCategorySpelling(ids) {
+    const produtos = await ProductRepository.findActiveByIds(ids);
+    const idsPorCategoria = new Map();
+    for (const { _id, category } of produtos) {
+      idsPorCategoria.set(category, [...(idsPorCategoria.get(category) || []), _id]);
+    }
+
+    let ajustados = 0;
+    for (const [categoria, idsDaCategoria] of idsPorCategoria) {
+      const grafia = await ProductRepository.findCategorySpelling(categoria, ids);
+      if (grafia && grafia !== categoria) {
+        ajustados += await ProductRepository.updateCategoryMany(idsDaCategoria, grafia);
+      }
+    }
+    return ajustados;
   }
 
   async changeCategory(ids, categoria) {

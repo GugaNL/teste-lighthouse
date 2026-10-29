@@ -166,7 +166,7 @@ npm --prefix frontend run dev
 | `POST` | `/products/batch/restore` | Restaura vários produtos `{ ids }` *(extra)* | `200` | `400` |
 | `POST` | `/products/batch/category` | Muda a categoria de vários `{ ids, category }` *(extra)* | `200` | `400` |
 | `GET` | `/categories` | Resumo por categoria *(extra)* | `200` | — |
-| `GET` | `/health` | Health check *(extra)* | `200` | — |
+| `GET` | `/health` | Health check *(extra)* | `200` | `503` (sem conexão com o MongoDB) |
 
 As rotas ficam **exatamente** como no enunciado (`/products`, sem prefixo `/api`).
 
@@ -220,7 +220,7 @@ A resposta é **sempre uma lista**; o total que atende aos filtros vem no cabeç
 
 ### Exclusão lógica e operações em lote
 
-`DELETE /products/:id` continua respondendo `204` e o produto some de **todas** as leituras (listagem, `GET /products/:id`, resumo por categoria, edição), mas fica no banco com `deletedAt` preenchido. `POST /products/:id/restore` desfaz a exclusão e devolve o produto como estava — é o "Desfazer" do frontend.
+`DELETE /products/:id` continua respondendo `204` e o produto some de **todas** as leituras (listagem, `GET /products/:id`, resumo por categoria, edição), mas fica no banco com `deletedAt` preenchido. `POST /products/:id/restore` desfaz a exclusão e devolve o produto como estava — é o "Desfazer" do frontend. Se, enquanto ele estava excluído, a categoria passou a ser gravada com outra capitalização ("eletrônicos" × "Eletrônicos"), o produto restaurado adota a grafia atual, para o catálogo não se fragmentar.
 
 As rotas `/products/batch/*` recebem até **100 ids** únicos. Ids inexistentes ou já excluídos são ignorados, e a resposta diz quantos foram afetados (`{ "deleted": 3 }`, `{ "restored": 3 }`, `{ "updated": 2, "category": "Cozinha" }`). A mudança de categoria em lote aplica a mesma normalização da gravação individual e incrementa a versão de cada produto, então quem estava editando um deles recebe `412` ao salvar.
 
@@ -253,6 +253,7 @@ Todo erro tem o mesmo corpo, com mensagens em português prontas para a tela:
 | `404` | Produto inexistente, ou rota desconhecida da API |
 | `412` | `If-Match` com versão desatualizada |
 | `413` | Corpo maior que 100 KB |
+| `503` | `/health` sem conexão com o MongoDB (o healthcheck do Docker acusa) |
 | `500` | Erro inesperado |
 
 ### Exemplos com `curl`
@@ -420,7 +421,7 @@ npm run test:api    # coleção Postman contra a API no ar (npm run dev antes)
 
 | Suíte | Ferramentas | Quantidade | Cobre |
 | :--- | :--- | :---: | :--- |
-| Backend | Jest + Supertest + mongodb-memory-server | **115** | Cada endpoint e status; cada regra de negócio nos limites (2/3/120/121 caracteres, `0`, `0.01`, `-1`, `1.5`, texto, `null`, só espaços); busca, filtros (faixa de estoque e de preço), ordenação com acento, paginação; `If-Match`/`412`; exclusão lógica e restauração; operações em lote (validação, limite de 100, grafia da categoria); JSON malformado; rota desconhecida; resumo por categoria; funções puras |
+| Backend | Jest + Supertest + mongodb-memory-server | **118** | Cada endpoint e status; cada regra de negócio nos limites (2/3/120/121 caracteres, `0`, `0.01`, `-1`, `1.5`, texto, `null`, só espaços); busca, filtros (faixa de estoque e de preço), ordenação com acento, paginação; `If-Match`/`412`; exclusão lógica e restauração (inclusive a grafia da categoria); operações em lote (validação, limite de 100, grafia da categoria); JSON malformado; rota desconhecida; health com `503`; resumo por categoria; funções puras |
 | Frontend | Vitest + Testing Library | **73** | Esquema zod (mesmos casos da API); `ApiError` para cada tipo de falha; `ProductForm` criando e editando, erro da API no campo certo, estado de envio, descarte com confirmação no Cancelar, no voltar do navegador e nenhuma depois de salvar; `ConfirmDialog` (foco, Esc, Tab, clique no fundo, ocupado); `ProductList` com carregando, erro + tentar de novo, vazio, exclusão confirmada/cancelada/falhando, desfazer exclusão, busca com debounce, filtros de estoque e preço, tamanho da página, atalho `/` e ações em lote (seleção, excluir com desfazer, mudar categoria, exportar selecionados); `Layout` com atalho `N` e alternância de tema |
 | Contrato | Postman / Newman | **15 req. / 17 asserções** | Fluxo ponta a ponta contra a API real: criar → listar → buscar → atualizar → conflito → remover → 404 |
 
@@ -448,8 +449,8 @@ npm run format:check  # Prettier
 - 📤 **Exportar CSV** do resultado filtrado ou só dos selecionados (separador `;` e BOM para abrir direto no Excel em português).
 - ⚠️ **Aviso de alterações não salvas** em qualquer saída do formulário (Cancelar, "← Voltar", links do topo, botão voltar do navegador) e ao fechar a aba.
 - 📚 **Swagger UI** a partir do contrato OpenAPI + **coleção Postman** com testes.
-- 🐳 **Docker** em um comando, com healthcheck, usuário não-root e seed automático.
-- 🧪 **188 testes automatizados** + contrato Newman, e **CI** para GitHub e GitLab (com lint, typecheck e formatação).
+- 🐳 **Docker** em um comando, com healthcheck (que acusa o banco fora do ar), usuário não-root, seed automático e encerramento gracioso no `SIGTERM`.
+- 🧪 **191 testes automatizados** + contrato Newman, e **CI** para GitHub e GitLab (com lint, typecheck e formatação).
 - 🌙 **Tema escuro**: segue o sistema operacional por padrão e tem botão para alternar no topo; a escolha fica salva no navegador e é aplicada antes da primeira pintura (sem piscar o tema errado).
 - 🛡️ Helmet, limite de corpo (100 KB), regex de busca escapada (sem injeção de padrão), mensagens internas nunca vazam no `500`.
 - ♿ Acessibilidade e layout responsivo (tabela vira cartões no celular).

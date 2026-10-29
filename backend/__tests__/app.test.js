@@ -1,4 +1,5 @@
 const request = require('supertest');
+const mongoose = require('mongoose');
 const { start, stop } = require('./helpers/testServer');
 
 let app;
@@ -13,6 +14,18 @@ describe('infraestrutura', () => {
     const res = await request(app).get('/health');
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ status: 'ok', mongo: 'connected' });
+    expect(res.body).not.toHaveProperty('env');
+  });
+
+  it('GET /health responde 503 quando o banco está fora do ar', async () => {
+    await mongoose.disconnect();
+    try {
+      const res = await request(app).get('/health');
+      expect(res.status).toBe(503);
+      expect(res.body).toMatchObject({ status: 'unavailable', mongo: 'disconnected' });
+    } finally {
+      await mongoose.connect(process.env.MONGO_URL);
+    }
   });
 
   it('rota inexistente responde 404 em JSON', async () => {

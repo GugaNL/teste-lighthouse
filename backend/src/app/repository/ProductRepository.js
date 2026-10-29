@@ -110,6 +110,12 @@ class ProductRepository extends Repository {
     return modifiedCount;
   }
 
+  async findActiveByIds(ids) {
+    return ProductSchema.find({ _id: { $in: ids }, ...ATIVO })
+      .select('category')
+      .lean();
+  }
+
   async updateCategoryMany(ids, category) {
     const { modifiedCount } = await ProductSchema.updateMany(
       { _id: { $in: ids }, ...ATIVO },
