@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 export type Theme = 'light' | 'dark';
 
-export const THEME_STORAGE_KEY = 'codex-catalogo:tema';
+export const THEME_STORAGE_KEY = 'catalogo-produtos:tema';
 const CONSULTA_ESCURO = '(prefers-color-scheme: dark)';
 const COR_DO_TOPO: Record<Theme, string> = { light: '#0b2b40', dark: '#0a1f2e' };
 

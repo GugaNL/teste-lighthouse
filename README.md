@@ -1,8 +1,8 @@
-# Codex Catálogo — Gerenciamento de Catálogo de Produtos
+# Catálogo de Produtos — Gerenciamento de Catálogo
 
 Aplicação fullstack para o vendedor gerenciar o catálogo de produtos: **API REST em Node.js (Express 5) + MongoDB (Mongoose)** e **frontend em React 18 (Vite)**.
 
-Solução do desafio técnico [`occ-react-node`](https://gitlab.com/lighthouseit/testes-tecnicos/occ-react-node), seguindo o padrão de arquitetura dos projetos Codex.
+Solução do desafio técnico [`occ-react-node`](https://gitlab.com/lighthouseit/testes-tecnicos/occ-react-node).
 
 ![Listagem de produtos](docs/screenshots/listagem.jpg)
 
@@ -122,7 +122,7 @@ npm --prefix frontend run dev
 | :--- | :--- | :--- |
 | `PORT` | `4008` | Porta HTTP da API |
 | `NODE_ENV` | `development` | `development`, `production` ou `test` |
-| `MONGO_URL` | `mongodb://127.0.0.1:27022/codex-catalogo` | Conexão do MongoDB. **Obrigatória em produção** (a API não sobe sem ela) |
+| `MONGO_URL` | `mongodb://127.0.0.1:27022/catalogo-produtos` | Conexão do MongoDB. **Obrigatória em produção** (a API não sobe sem ela) |
 | `CORS_ORIGIN` | `*` | Origens liberadas, separadas por vírgula. Só importa com o frontend em outro domínio |
 | `SEED_ON_START` | `true` | Cria o catálogo de demonstração na subida **se a coleção estiver vazia** (nunca apaga nada) |
 
@@ -283,10 +283,10 @@ curl -i -X POST http://localhost:4008/products/batch/category -H "Content-Type: 
 
 | Camada | Escolha | Por quê |
 | :--- | :--- | :--- |
-| API | **Express 5** | Padrão dos projetos Codex; o Express 5 já propaga erro de handler assíncrono e tem roteamento mais estrito |
-| Banco | **MongoDB + Mongoose 8** | Opção permitida pelo desafio e padrão Codex; collation `pt` resolve ordenação e comparação sem diferenciar maiúsculas |
+| API | **Express 5** | O Express 5 já propaga erro de handler assíncrono e tem roteamento mais estrito |
+| Banco | **MongoDB + Mongoose 8** | Opção permitida pelo desafio; collation `pt` resolve ordenação e comparação sem diferenciar maiúsculas |
 | Validação | **Joi** | Esquema declarativo, todas as mensagens em um lugar, conversão/limpeza do corpo (`stripUnknown`) |
-| Frontend | **React 18 + TypeScript + Vite + React Router 6 + axios + Sass** | Padrão Codex; TypeScript estrito com os tipos do domínio num lugar só ([`types/`](frontend/src/types)) |
+| Frontend | **React 18 + TypeScript + Vite + React Router 6 + axios + Sass** | TypeScript estrito com os tipos do domínio num lugar só ([`types/`](frontend/src/types)) |
 | Dados no frontend | **TanStack Query 5** | Cache, cancelamento, nova tentativa e invalidação depois de cada escrita, sem estado global à mão |
 | Formulário | **react-hook-form + zod** | Validação declarativa com as mesmas mensagens do Joi; a saída do esquema já é o corpo da requisição |
 | Qualidade | **ESLint (typescript-eslint, react-hooks, jsx-a11y) + Prettier** | Lint com tipos e regras de acessibilidade; formatação conferida no CI |
@@ -305,7 +305,7 @@ HTTP ─▶ routes ─▶ validation ─▶ controller ─▶ service ─▶ rep
 
 - **routes** só ligam URL → middlewares → controller.
 - **validation** responde `400` antes de qualquer acesso ao banco (corpo, query e formato do ID).
-- **controller** é fino: traduz HTTP (status, `Location`, `ETag`, `X-Total-Count`) e tem `try/catch` em cada método (padrão Codex). Erros de domínio (`NotFound`, `PreconditionFailed`…) carregam o próprio `statusCode`.
+- **controller** é fino: traduz HTTP (status, `Location`, `ETag`, `X-Total-Count`) e tem `try/catch` em cada método. Erros de domínio (`NotFound`, `PreconditionFailed`…) carregam o próprio `statusCode`.
 - **service** concentra a regra: normalização do texto, reaproveitamento da grafia da categoria, decisão entre `404` e `412`.
 - **repository** isola o Mongoose (filtros, collation, paginação, agregação).
 - **rules/** são funções puras (limites, normalização, ordenação, parsing de `If-Match`) — testadas sem banco e lidas pela validação, pelo schema e pelo service, então um limite muda num lugar só.
@@ -327,7 +327,7 @@ Quando a API recusa algo que passou no cliente, o formulário mostra a mensagem 
 - **ID inválido é `400`, ID inexistente é `404`.** Um ID fora do formato nunca vai existir, e responder antes de ir ao banco evita expor um `CastError`.
 - **Concorrência otimista** com versão própria (o `__v` do Mongoose só incrementa quando um array muda). Checagem e escrita são **uma operação atômica** (`findOneAndUpdate` filtrando pela versão).
 - **Rotas exatamente como no enunciado** (`/products`); as rotas do site ficam em português (`/produtos/novo`) para o mesmo servidor entregar API e SPA sem colisão. Uma sub-rota desconhecida da API responde `404` em JSON, nunca o HTML do site.
-- **Corpo de erro** `{ statusCode, error, message, details }`. O padrão Codex usa `{ description, name }`, mas aqui `name` é campo do produto — repetir a chave na raiz do erro confundiria quem consome a API.
+- **Corpo de erro** `{ statusCode, error, message, details }`. Sem `name` na raiz: `name` é campo do produto, e repetir a chave no erro confundiria quem consome a API.
 
 ### Frontend
 
@@ -340,7 +340,7 @@ Quando a API recusa algo que passou no cliente, o formulário mostra a mensagem 
 - **Estado na URL**: busca, filtro, ordenação e página ficam na query string (`/?busca=fone&ordem=-price`) — recarregar, voltar no navegador ou compartilhar o link mostra a mesma lista. A lógica fica em [`useProductFilters`](frontend/src/hooks/useProductFilters.ts); exclusão e exportação também saíram da página para hooks próprios (`useProductDeletion`, `useCsvExport`).
 - **Carregamento sob demanda**: as telas de formulário (com zod e react-hook-form) ficam num pacote separado, baixado só ao abrir o formulário; a listagem não carrega esse código.
 - **Acessibilidade**: rótulos ligados aos campos, `aria-invalid` + `aria-describedby` nos erros, foco no primeiro campo inválido, diálogo com `<dialog>` nativo (o resto da página fica inerte) com foco no botão seguro e Tab preso, **foco no título da página e título da aba a cada troca de tela**, rolagem restaurada, toasts em região `aria-live`, link "pular para o conteúdo", estado de estoque com texto (não só cor) e `prefers-reduced-motion`. O `eslint-plugin-jsx-a11y` confere a marcação no CI.
-- **Visual**: paleta institucional Codex (mesmos tokens do Painel BI/RCA/Bolso), **tema escuro** automático pelo sistema operacional (só os tokens mudam), fonte Inter servida pelo próprio app (sem Google Fonts), números tabulares; no celular a tabela vira cartões só com CSS.
+- **Visual**: cores definidas como tokens nomeados pela função (`--fundo`, `--primaria`, `--texto`…), **tema escuro** que segue o sistema operacional e pode ser alternado no topo (só os tokens mudam), fonte Inter servida pelo próprio app (sem Google Fonts), números tabulares; no celular a tabela vira cartões só com CSS.
 
 ### Convenção de nomes no frontend
 
@@ -393,7 +393,7 @@ A fronteira é o `export`: quem importa um módulo lê uma API em inglês, como 
 │       ├── pages/                    # ProductList, ProductCreate, ProductEdit, NotFound
 │       ├── context/                  # ToastContext
 │       ├── utils/                    # limites do produto, formatação, CSV
-│       ├── styles/                   # main.scss (tokens Codex, tema claro e escuro)
+│       ├── styles/                   # main.scss (tokens de cor, tema claro e escuro)
 │       ├── test/                     # setup do Vitest e renderWithProviders
 │       ├── routes.tsx                # rotas (formulários sob demanda)
 │       └── __tests__/                # Vitest + Testing Library
@@ -453,7 +453,7 @@ npm run format:check  # Prettier
 
 ## 9. Limitações e próximos passos
 
-- **Autenticação/autorização** não fazia parte do escopo; o caminho natural seria JWT com papéis (o mesmo padrão `auth` dos outros projetos Codex) protegendo as rotas de escrita.
+- **Autenticação/autorização** não fazia parte do escopo; o caminho natural seria JWT com papéis protegendo as rotas de escrita.
 - **Exclusão lógica sem expurgo**: produtos excluídos ficam no banco indefinidamente. Em produção caberia uma rotina que apague de vez os excluídos há mais de N dias (ou um índice TTL em `deletedAt`) e, se fizer sentido, uma tela de lixeira.
 - **Busca por regex** atende bem um catálogo de milhares de itens; para volumes maiores, índice de texto ou Atlas Search.
 - **Imagens do produto** e **SKU** ficariam como próximos campos do modelo.

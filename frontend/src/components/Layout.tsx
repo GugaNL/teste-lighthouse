@@ -51,7 +51,7 @@ export default function Layout() {
           <Link to="/" className="topo__marca">
             <img src="/favicon.svg" alt="" width="32" height="32" />
             <span>
-              <strong>Codex Catálogo</strong>
+              <strong>Catálogo de Produtos</strong>
               <small>Gestão de produtos</small>
             </span>
           </Link>
@@ -80,7 +80,7 @@ export default function Layout() {
       </main>
 
       <footer className="rodape">
-        Codex Catálogo · React + Node.js + MongoDB ·{' '}
+        Catálogo de Produtos · React + Node.js + MongoDB ·{' '}
         <a href={`${API_URL}/docs`} target="_blank" rel="noreferrer">
           Documentação da API
         </a>

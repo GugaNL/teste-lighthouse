@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "Codex Catálogo — API de produtos",
+    "name": "Catálogo de Produtos — API",
     "description": "Fluxo completo do CRUD com testes automáticos. Rode a pasta inteira em ordem (Run collection) com a API no ar em {{baseUrl}}. Cada requisição valida status HTTP, cabeçalhos e corpo — inclusive os casos de erro.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },

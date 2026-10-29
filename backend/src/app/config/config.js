@@ -18,7 +18,7 @@ if (nodeEnv === 'production' && !process.env.MONGO_URL) {
 module.exports = {
   port: Number(process.env.PORT) || 4008,
   nodeEnv,
-  mongoUrl: process.env.MONGO_URL || 'mongodb://127.0.0.1:27022/codex-catalogo',
+  mongoUrl: process.env.MONGO_URL || 'mongodb://127.0.0.1:27022/catalogo-produtos',
 
   // Origens liberadas no CORS, separadas por vírgula. Em dev o Vite faz proxy
   // e nem precisa de CORS; isto vale para quem apontar outro front para a API.
@@ -28,5 +28,5 @@ module.exports = {
   // docker compose para a aplicação já subir com dados).
   seedOnStart: process.env.SEED_ON_START === 'true',
 
-  produto: 'Codex Catálogo',
+  produto: 'Catálogo de Produtos',
 };

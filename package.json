@@ -1,7 +1,7 @@
 {
-  "name": "codex-catalogo",
+  "name": "catalogo-produtos",
   "version": "1.0.0",
-  "description": "Codex Catálogo — gerenciamento de catálogo de produtos (React + Node.js + MongoDB)",
+  "description": "Catálogo de Produtos — gerenciamento de catálogo de produtos (React + Node.js + MongoDB)",
   "private": true,
   "scripts": {
     "setup": "npm install && npm --prefix backend install && npm --prefix frontend install && node scripts/env.js",

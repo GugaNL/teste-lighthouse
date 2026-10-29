@@ -6,7 +6,7 @@ const { etagOf, parseIfMatch } = require('../rules/product');
 /**
  * Controller fino: traduz HTTP ↔ service e não decide regra nenhuma.
  *
- * Cada método tem o próprio try/catch (padrão Codex). Os erros de domínio
+ * Cada método tem o próprio try/catch. Os erros de domínio
  * (NotFound, PreconditionFailed...) carregam o statusCode; qualquer outro vira
  * 500 com mensagem genérica, e o detalhe fica só no log do servidor.
  */

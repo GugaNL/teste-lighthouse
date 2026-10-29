@@ -1,7 +1,6 @@
 # Um container só: o backend serve a API e o SPA no mesmo host e porta.
 #
-# Mesmo desenho dos outros projetos Codex — um serviço, um domínio, sem CORS
-# nem proxy reverso para configurar no deploy.
+# Um serviço, um domínio: sem CORS nem proxy reverso para configurar no deploy.
 
 # ─── Etapa 1: build do frontend ───────────────────────────────────────────────
 FROM node:22-alpine AS frontend

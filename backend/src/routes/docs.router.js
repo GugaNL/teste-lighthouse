@@ -16,7 +16,7 @@ module.exports = (server, routes, prefix = '/docs') => {
   const spec = YAML.parse(fs.readFileSync(SPEC_PATH, 'utf8'));
 
   routes.get('/openapi.json', (req, res) => res.json(spec));
-  routes.use('/', swaggerUi.serve, swaggerUi.setup(spec, { customSiteTitle: 'Codex Catálogo — API' }));
+  routes.use('/', swaggerUi.serve, swaggerUi.setup(spec, { customSiteTitle: 'Catálogo de Produtos — API' }));
 
   server.use(prefix, routes);
 };

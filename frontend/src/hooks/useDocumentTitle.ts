@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-const NOME_DO_APP = 'Codex Catálogo';
+const NOME_DO_APP = 'Catálogo de Produtos';
 
 export function useDocumentTitle(titulo: string): void {
   useEffect(() => {

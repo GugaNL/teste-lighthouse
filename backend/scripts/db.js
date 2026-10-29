@@ -19,7 +19,7 @@ const dbPath = path.join(__dirname, '..', '.localdb');
     instance: { port: PORT, dbPath, storageEngine: 'wiredTiger' },
   });
 
-  console.log(`[db] MongoDB local em ${mongod.getUri()}codex-catalogo`);
+  console.log(`[db] MongoDB local em ${mongod.getUri()}catalogo-produtos`);
   console.log('[db] Ctrl+C para parar.');
 
   const parar = async () => {

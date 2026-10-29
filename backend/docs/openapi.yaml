@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Codex Catálogo — API de produtos
+  title: Catálogo de Produtos — API
   version: 1.0.0
   description: |
     API REST do gerenciamento de catálogo de produtos.

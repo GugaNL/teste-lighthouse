@@ -1,7 +1,7 @@
 {
-  "name": "codex-catalogo-backend",
+  "name": "catalogo-produtos-backend",
   "version": "1.0.0",
-  "description": "Codex Catálogo — API REST de gerenciamento de catálogo de produtos",
+  "description": "Catálogo de Produtos — API REST de gerenciamento de catálogo de produtos",
   "main": "src/server.js",
   "private": true,
   "scripts": {
@@ -13,7 +13,6 @@
     "test:coverage": "jest --runInBand --coverage",
     "test:api": "npx -y newman@6 run docs/postman_collection.json"
   },
-  "author": "Codex",
   "license": "ISC",
   "engines": {
     "node": ">=22"

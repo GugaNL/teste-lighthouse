@@ -1,11 +1,10 @@
 /**
  * Corpo único de erro da API.
  *
- * O padrão Codex usa { description, name }. Aqui as chaves mudaram para
- * { statusCode, error, message, details } porque `name` é um campo do produto —
- * um erro com `name` na raiz confundiria quem consome a API justamente no
- * endpoint de produtos. O resto do contrato é o mesmo: os erros de domínio
- * carregam o próprio statusCode e o serializer só os traduz.
+ * As chaves são { statusCode, error, message, details }, sem `name` na raiz:
+ * `name` é um campo do produto, e um erro com `name` confundiria quem consome
+ * a API justamente no endpoint de produtos. Os erros de domínio carregam o
+ * próprio statusCode e o serializer só os traduz.
  */
 const serializeErrors = (erro) => {
   const statusCode = erro?.statusCode || 500;

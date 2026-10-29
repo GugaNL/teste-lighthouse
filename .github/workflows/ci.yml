@@ -45,4 +45,4 @@ jobs:
     needs: [backend, frontend]
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -t codex-catalogo .
+      - run: docker build -t catalogo-produtos .

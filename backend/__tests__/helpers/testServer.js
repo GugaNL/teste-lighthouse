@@ -12,7 +12,7 @@ async function start() {
   mongod = await MongoMemoryServer.create();
 
   process.env.NODE_ENV = 'test';
-  process.env.MONGO_URL = mongod.getUri('codex-catalogo-test');
+  process.env.MONGO_URL = mongod.getUri('catalogo-produtos-test');
   // Aponta para uma pasta inexistente: os testes não dependem de o frontend
   // ter sido compilado nesta máquina.
   process.env.FRONTEND_DIR = '/nao-existe';
