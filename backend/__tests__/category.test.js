@@ -23,7 +23,6 @@ describe('GET /categories', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual([
       { name: 'Brinquedos', products: 1, stock: 1, inventoryValue: 39.9, outOfStock: 0, lowStock: 1 },
-      // 4000×2 + 100,10×0 + 0,10×3 — sem resíduo de ponto flutuante.
       { name: 'Informática', products: 3, stock: 5, inventoryValue: 8000.3, outOfStock: 1, lowStock: 2 },
     ]);
   });

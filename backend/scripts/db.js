@@ -1,10 +1,3 @@
-/*
- * MongoDB local para desenvolvimento, sem instalar servidor nem Docker.
- * Dados persistem em backend/.localdb.
- *
- * Uso: `npm run db` (deixe rodando em um terminal).
- * Na primeira execução o mongodb-memory-server baixa o binário do mongod.
- */
 const path = require('path');
 const fs = require('fs');
 const { MongoMemoryServer } = require('mongodb-memory-server');

@@ -21,13 +21,6 @@ class ProductService {
     return ProductRepository.create(await this.normalize(dados));
   }
 
-  /**
-   * Substitui o produto inteiro.
-   *
-   * `expectedVersion` vem do If-Match. Quando o filtro versionado não casa,
-   * uma segunda leitura decide a resposta: o produto sumiu (404) ou outra
-   * pessoa gravou antes (412, com a versão atual para o cliente decidir).
-   */
   async update(id, dados, expectedVersion) {
     if (Number.isNaN(expectedVersion)) {
       throw new BadRequest('Cabeçalho If-Match inválido — use o ETag recebido, por exemplo "3".');
@@ -67,11 +60,6 @@ class ProductService {
     return { restored: await ProductRepository.restoreMany(ids) };
   }
 
-  /**
-   * Muda a categoria de vários produtos de uma vez, com a mesma normalização
-   * da gravação individual. Os próprios produtos selecionados ficam fora da
-   * busca de grafia, para o lote conseguir corrigir a capitalização.
-   */
   async changeCategory(ids, categoria) {
     const normalizada = normalizeText(categoria);
     const grafiaExistente = await ProductRepository.findCategorySpelling(normalizada, ids);
@@ -85,23 +73,12 @@ class ProductService {
       name: g._id,
       products: g.products,
       stock: g.stock,
-      // A soma de preço × estoque no Mongo acumula ponto flutuante.
       inventoryValue: roundMoney(g.inventoryValue),
       outOfStock: g.outOfStock,
       lowStock: g.lowStock,
     }));
   }
 
-  /**
-   * Normaliza o texto antes de gravar.
-   *
-   * A categoria é texto livre (o desafio pede só "obrigatória e não vazia"),
-   * mas texto livre fragmenta: "eletrônicos", "Eletrônicos" e "ELETRÔNICOS"
-   * virariam três filtros. Se a categoria já existe com outra capitalização,
-   * a grafia que já está no catálogo é reaproveitada. Na edição o próprio
-   * produto fica de fora da busca — senão ele nunca conseguiria corrigir a
-   * capitalização da categoria que só ele usa.
-   */
   async normalize(dados, idAtual) {
     const category = normalizeText(dados.category);
     const grafiaExistente = await ProductRepository.findCategorySpelling(category, idAtual);

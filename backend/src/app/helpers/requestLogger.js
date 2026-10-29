@@ -1,9 +1,3 @@
-/**
- * Log de uma linha por requisição: método, rota, status e tempo.
- *
- * Suficiente para acompanhar o que o frontend está chamando durante o
- * desenvolvimento, sem trazer uma dependência só para isso.
- */
 module.exports = (req, res, next) => {
   const inicio = process.hrtime.bigint();
   res.on('finish', () => {

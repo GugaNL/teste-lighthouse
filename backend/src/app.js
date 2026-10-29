@@ -11,12 +11,9 @@ const { serializeErrors } = require('./app/serialize/errorSerialize');
 
 require('./infra/database/mongo');
 
-// Em produção o build do React é copiado para /app/frontend (ver Dockerfile).
 const FRONTEND_DIR =
   process.env.FRONTEND_DIR || path.resolve(__dirname, '..', '..', 'frontend', 'dist');
 
-// Prefixos que pertencem à API: o que não casar com uma rota aqui é 404 em
-// JSON, nunca o index.html do SPA (que confundiria quem chama a API).
 const API_PREFIXES = ['/products', '/categories', '/docs', '/health'];
 
 class App {
@@ -31,14 +28,10 @@ class App {
   }
 
   middlewares() {
-    // CSP desligada porque o mesmo processo serve o SPA e o Swagger UI, e a
-    // política padrão do Helmet bloquearia os dois.
     this.server.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false }));
     this.server.use(
       cors({
         origin: config.corsOrigin === '*' ? '*' : config.corsOrigin.split(',').map((o) => o.trim()),
-        // Sem isto o navegador esconde estes cabeçalhos do JavaScript em
-        // chamadas cross-origin, e a paginação e o If-Match deixam de funcionar.
         exposedHeaders: ['X-Total-Count', 'ETag', 'Location'],
       })
     );
@@ -77,15 +70,12 @@ class App {
   }
 
   frontend() {
-    // Serve o SPA no mesmo host e porta da API (só quando o build existe).
     if (!fs.existsSync(path.join(FRONTEND_DIR, 'index.html'))) return;
     this.server.use(express.static(FRONTEND_DIR));
-    // Fallback do React Router (Express 5 não aceita curinga "*").
     this.server.use((req, res) => res.sendFile(path.join(FRONTEND_DIR, 'index.html')));
   }
 
   errorHandler() {
-    // eslint-disable-next-line no-unused-vars
     this.server.use((err, req, res, next) => {
       if (err?.type === 'entity.parse.failed') {
         return res.status(400).json({

@@ -14,7 +14,7 @@ describe('regras puras do produto', () => {
   });
 
   it('hasAtMostTwoDecimals tolera o ruído de ponto flutuante', () => {
-    expect(hasAtMostTwoDecimals(0.07)).toBe(true); // 0.07 * 100 = 7.000000000000001
+    expect(hasAtMostTwoDecimals(0.07)).toBe(true);
     expect(hasAtMostTwoDecimals(19.9)).toBe(true);
     expect(hasAtMostTwoDecimals(1.005)).toBe(false);
     expect(hasAtMostTwoDecimals(Infinity)).toBe(false);

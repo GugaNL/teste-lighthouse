@@ -181,7 +181,6 @@ describe('POST /products', () => {
 
 describe('GET /products', () => {
   const semear = async () => {
-    // Criados em sequência: o último é o mais recente.
     await criar({ name: 'Notebook Vortex', price: 4899.9, stock: 12, category: 'Informática' });
     await criar({ name: 'Mouse sem fio', price: 249.9, stock: 0, category: 'Informática', description: 'Sensor óptico' });
     await criar({ name: 'Ábaco de madeira', price: 39.9, stock: 3, category: 'Brinquedos' });
@@ -403,7 +402,6 @@ describe('PUT /products/:id', () => {
 
     it('responde 412 com a versão atual quando outra pessoa gravou antes', async () => {
       const { body: criado } = await criar();
-      // Duas abas abriram a versão 1; a primeira grava.
       await request(app).put(`/products/${criado.id}`).set('If-Match', '"1"').send(atualizacao);
 
       const res = await request(app)

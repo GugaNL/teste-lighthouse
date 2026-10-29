@@ -3,13 +3,6 @@ const { serialize } = require('../serialize/productSerialize');
 const { serializeErrors } = require('../serialize/errorSerialize');
 const { etagOf, parseIfMatch } = require('../rules/product');
 
-/**
- * Controller fino: traduz HTTP ↔ service e não decide regra nenhuma.
- *
- * Cada método tem o próprio try/catch. Os erros de domínio
- * (NotFound, PreconditionFailed...) carregam o statusCode; qualquer outro vira
- * 500 com mensagem genérica, e o detalhe fica só no log do servidor.
- */
 class ProductController {
   async getAll(req, res) {
     try {

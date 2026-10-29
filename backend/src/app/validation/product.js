@@ -1,17 +1,6 @@
 const Joi = require('joi');
 const { LIMITS, SORT_OPTIONS, STOCK_STATUS, hasAtMostTwoDecimals } = require('../rules/product');
 
-/**
- * Esquemas de validação do produto.
- *
- * O mesmo `save` vale para POST e PUT: o PUT é substituição completa, então
- * as regras são idênticas — e é isso que permite o frontend usar um único
- * formulário para criar e editar.
- *
- * As mensagens saem em português porque vão direto para a tela, embaixo do
- * campo que falhou.
- */
-
 const name = Joi.string()
   .trim()
   .min(LIMITS.name.min)
@@ -36,8 +25,6 @@ const description = Joi.string()
     'string.max': `Descrição deve ter no máximo ${LIMITS.description.max} caracteres`,
   });
 
-// `strict()` nos números: "10" (texto) não vira 10 em silêncio. O contrato é
-// JSON, e preço que chega como texto é sinal de cliente com bug.
 const price = Joi.number()
   .strict()
   .positive()
@@ -90,7 +77,6 @@ const save = Joi.object({ name, description, price, stock, category })
     'any.required': 'O corpo da requisição é obrigatório',
   });
 
-// Query string chega sempre como texto, então aqui a conversão é bem-vinda.
 const listQuery = Joi.object({
   search: Joi.string().trim().max(LIMITS.search.max).allow('').messages({
     'string.max': `Busca deve ter no máximo ${LIMITS.search.max} caracteres`,

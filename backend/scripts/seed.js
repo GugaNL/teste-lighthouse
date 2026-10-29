@@ -1,8 +1,3 @@
-/*
- * Recria o catálogo de demonstração (APAGA os produtos existentes).
- *
- * Uso: `npm run seed` — com o MongoDB do .env no ar (`npm run db` em dev).
- */
 const mongoose = require('mongoose');
 const config = require('../src/app/config/config');
 const { seed } = require('../src/infra/seed');

@@ -1,11 +1,5 @@
 const BadRequest = require('../errors/BadRequest');
 
-/**
- * Converte os detalhes do Joi num BadRequest com um item por campo.
- *
- * Um campo pode falhar em mais de uma regra ao mesmo tempo; fica só a primeira
- * mensagem de cada um, que é o que cabe embaixo de um input no formulário.
- */
 const validationError = (error, mensagem = 'Verifique os campos destacados.') => {
   const porCampo = new Map();
   (error?.details || []).forEach((detalhe) => {

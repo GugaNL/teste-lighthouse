@@ -8,7 +8,6 @@ app.listen(config.port, () => {
   console.log(`[server] Documentação: http://localhost:${config.port}/docs`);
 });
 
-// O seed espera o banco: a conexão pode levar algumas tentativas para subir.
 if (config.seedOnStart) {
   const semear = () => seedIfEmpty().catch((e) => console.error('[seed] Falhou:', e.message));
   if (mongoose.connection.readyState === 1) semear();

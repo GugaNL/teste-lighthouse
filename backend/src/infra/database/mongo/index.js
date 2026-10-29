@@ -8,13 +8,6 @@ class Database {
     this.connect();
   }
 
-  /**
-   * Conecta e, se o banco ainda não estiver no ar, tenta de novo.
-   *
-   * O Mongoose não refaz a conexão INICIAL sozinho — só reconecta depois de já
-   * ter conectado uma vez. Sem isto, subir API e banco juntos (`npm run dev`
-   * na raiz, ou um container que demora) deixaria a API viva e sem banco.
-   */
   connect() {
     mongoose.set('strictQuery', true);
     return mongoose

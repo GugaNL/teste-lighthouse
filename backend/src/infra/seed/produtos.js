@@ -1,10 +1,3 @@
-/**
- * Catálogo de demonstração.
- *
- * Variado de propósito: várias categorias, preços de centavos a milhares,
- * estoque zerado e estoque baixo — para os filtros, os indicadores e os
- * selos de estoque terem o que mostrar logo que o projeto sobe.
- */
 module.exports = [
   { name: 'Notebook Vortex 14 Ryzen 7', description: '16 GB de RAM, SSD de 512 GB e tela IPS de 14" com 100% sRGB.', price: 4899.9, stock: 12, category: 'Informática' },
   { name: 'Monitor UltraWide 34" Curvo', description: 'Resolução 3440×1440, 144 Hz e HDR10.', price: 2599, stock: 4, category: 'Informática' },
