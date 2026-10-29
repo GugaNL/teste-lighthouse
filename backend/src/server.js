@@ -17,6 +17,8 @@ database
   .then(async () => {
     const migrados = await productRepository.migratePriceToCents();
     if (migrados) logger.info(`Preço convertido para centavos em ${migrados} produtos.`);
+    await productRepository.ensureTrashExpiration(config.deletedRetentionMinutes * 60);
+    logger.info(`Produtos excluídos são apagados do banco ${config.deletedRetentionMinutes} min depois.`);
     if (config.seedOnStart) await seedIfEmpty();
   })
   .catch((erro) => logger.error({ err: erro }, 'Falha ao preparar o banco'));

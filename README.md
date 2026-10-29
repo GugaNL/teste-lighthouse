@@ -35,7 +35,7 @@ Solução do desafio técnico [`occ-react-node`](https://gitlab.com/lighthouseit
 | `GET /products/:id` retorna por ID | ✅ | `ProductController.getById` (404 se não existe, 400 se o ID é inválido) |
 | `POST /products` cria | ✅ | `ProductController.create` (201 + `Location`) |
 | `PUT /products/:id` atualiza | ✅ | `ProductController.update` (200 / 400 / 404 / 412) |
-| `DELETE /products/:id` remove | ✅ | `ProductController.remove` (204 / 400 / 404), com exclusão lógica e "Desfazer" |
+| `DELETE /products/:id` remove | ✅ | `ProductController.remove` (204 / 400 / 404): some na hora de todas as leituras e é apagado do banco após o prazo da lixeira (padrão 10 min), com "Desfazer" até lá |
 | `name` obrigatório, 3 a 120 caracteres | ✅ | Joi em [`validation/product.js`](backend/src/app/validation/product.js) + schema Mongoose + testes |
 | `price` número positivo maior que 0 | ✅ | idem (também recusa texto, `null` e mais de 2 casas decimais) |
 | `stock` inteiro ≥ 0 | ✅ | idem (recusa fracionado e negativo) |
@@ -129,6 +129,7 @@ npm --prefix frontend run dev
 | `MONGO_URL` | `mongodb://127.0.0.1:27022/catalogo-produtos` | Conexão do MongoDB. **Obrigatória em produção** (a API não sobe sem ela) |
 | `CORS_ORIGIN` | `*` em dev; vazio em produção | Origens liberadas, separadas por vírgula, ou `*`. Vazio = sem CORS (o site é servido pela própria API). Só importa com o frontend em outro domínio |
 | `SEED_ON_START` | `true` | Cria o catálogo de demonstração na subida **se a coleção estiver vazia** (nunca apaga nada) |
+| `DELETED_RETENTION_MINUTES` | `10` | Prazo da lixeira: minutos até o produto excluído ser apagado **definitivamente** do banco (de 1 a 525600). Mudar o valor atualiza o índice na próxima subida |
 | `RATE_LIMIT_WRITES_PER_MINUTE` | `120` | Escritas (`POST`/`PUT`/`DELETE`) aceitas por minuto e por IP; acima disso, `429`. `0` desliga |
 | `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace` ou `silent` |
 
@@ -148,6 +149,7 @@ As variáveis são **validadas na subida** (Joi): um valor inválido (porta que 
 | `APP_PORT` | `4008` | Porta do host onde a aplicação fica exposta |
 | `CORS_ORIGIN` | *(vazio)* | Repassada para a API; vazio = sem CORS, já que o site e a API ficam no mesmo domínio |
 | `SEED_ON_START` | `true` | Repassada para a API |
+| `DELETED_RETENTION_MINUTES` | `10` | Repassada para a API (prazo da lixeira) |
 
 ---
 
@@ -165,8 +167,8 @@ As variáveis são **validadas na subida** (Joi): um valor inválido (porta que 
 | `GET` | `/products/:id` | Retorna um produto por ID | `200` | `400`, `404` |
 | `POST` | `/products` | Cria um produto | `201` | `400` |
 | `PUT` | `/products/:id` | Atualiza um produto (substituição completa) | `200` | `400`, `404`, `412` |
-| `DELETE` | `/products/:id` | Remove um produto (exclusão lógica) | `204` | `400`, `404` |
-| `POST` | `/products/:id/restore` | Desfaz a exclusão *(extra)* | `200` | `400`, `404` |
+| `DELETE` | `/products/:id` | Remove um produto (some na hora; apagado do banco após o prazo da lixeira) | `204` | `400`, `404` |
+| `POST` | `/products/:id/restore` | Desfaz a exclusão, dentro do prazo da lixeira *(extra)* | `200` | `400`, `404` |
 | `POST` | `/products/batch/delete` | Exclui vários produtos `{ ids }` *(extra)* | `200` | `400` |
 | `POST` | `/products/batch/restore` | Restaura vários produtos `{ ids }` *(extra)* | `200` | `400` |
 | `POST` | `/products/batch/category` | Muda a categoria de vários `{ ids, category }` *(extra)* | `200` | `400` |
@@ -223,9 +225,13 @@ A resposta é **sempre uma lista**; o total que atende aos filtros vem no cabeç
 
 `GET /products/:id`, `POST` e `PUT` devolvem `ETag: "<versão>"`. Enviando esse valor em `If-Match` no `PUT`, a API só grava se ninguém tiver alterado o produto nesse meio-tempo; caso contrário responde **`412 Precondition Failed`** com a `currentVersion`. Sem o cabeçalho, a última gravação vence (comportamento REST padrão). O frontend usa isso para avisar o vendedor em vez de sobrescrever a alteração de outra pessoa.
 
-### Exclusão lógica e operações em lote
+### Exclusão com lixeira e operações em lote
 
-`DELETE /products/:id` continua respondendo `204` e o produto some de **todas** as leituras (listagem, `GET /products/:id`, resumo por categoria, edição), mas fica no banco com `deletedAt` preenchido. `POST /products/:id/restore` desfaz a exclusão e devolve o produto como estava — é o "Desfazer" do frontend. Se, enquanto ele estava excluído, a categoria passou a ser gravada com outra capitalização ("eletrônicos" × "Eletrônicos"), o produto restaurado adota a grafia atual, para o catálogo não se fragmentar.
+`DELETE /products/:id` responde `204` e o produto some **na hora** de todas as leituras (listagem, `GET /products/:id`, resumo por categoria, edição). Ele vai para uma lixeira (`deletedAt` preenchido) e é **apagado definitivamente do banco** depois de `DELETED_RETENTION_MINUTES` (padrão **10 minutos**) por um índice TTL do MongoDB — o mesmo mecanismo nativo que expira sessões, sem job nem cron na aplicação. O MongoDB verifica os vencidos a cada 60 segundos, então com o padrão o registro sai do banco em até ~11 minutos.
+
+Até lá, `POST /products/:id/restore` desfaz a exclusão e devolve o produto como estava — é o "Desfazer" do frontend, que fica 8 segundos na tela. Depois do prazo, a restauração responde `404`. Se, enquanto ele estava excluído, a categoria passou a ser gravada com outra capitalização ("eletrônicos" × "Eletrônicos"), o produto restaurado adota a grafia atual, para o catálogo não se fragmentar.
+
+O índice é **parcial** (só contém documentos com `deletedAt` do tipo data), então os produtos ativos (`deletedAt: null`) nunca expiram e não ocupam espaço nele. Ele é garantido pela API a cada subida ([`ProductRepository.ensureTrashExpiration`](backend/src/app/repository/ProductRepository.js)): cria se não existe e, se o prazo configurado mudou, ajusta com `collMod` — o MongoDB não aceita recriar um índice TTL com outro prazo.
 
 As rotas `/products/batch/*` recebem até **100 ids** únicos. Ids inexistentes ou já excluídos são ignorados, e a resposta diz quantos foram afetados (`{ "deleted": 3 }`, `{ "restored": 3 }`, `{ "updated": 2, "category": "Cozinha" }`). A mudança de categoria em lote aplica a mesma normalização da gravação individual e incrementa a versão de cada produto, então quem estava editando um deles recebe `412` ao salvar.
 
@@ -347,7 +353,7 @@ Quando a API recusa algo que passou no cliente, o formulário mostra a mensagem 
 - **CORS fechado por padrão em produção**: o site é servido pela própria API, então não precisa de CORS; `CORS_ORIGIN` libera origens quando o frontend fica em outro domínio.
 - **Limite de escritas** por IP (`express-rate-limit`), com os cabeçalhos `RateLimit` padrão; leituras não são limitadas.
 - **Logs estruturados** com pino: JSON em produção, uma linha legível em desenvolvimento. Cada requisição ganha um `X-Request-Id` (ou reaproveita o recebido), que aparece no log e na resposta.
-- **Índices compostos** começando por `deletedAt`, para as consultas de produtos ativos ordenadas por data, por categoria e por preço.
+- **Índices compostos** começando por `deletedAt`, para as consultas de produtos ativos ordenadas por data, por categoria e por preço, e um **índice TTL parcial** em `deletedAt` que esvazia a lixeira sozinho.
 - **Health check** responde `503` sem banco (o healthcheck do Docker acusa) e o servidor **encerra graciosamente** no `SIGTERM`.
 
 ### Frontend
@@ -440,7 +446,7 @@ npm run test:api    # coleção Postman contra a API no ar (npm run dev antes)
 
 | Suíte | Ferramentas | Quantidade | Cobre |
 | :--- | :--- | :---: | :--- |
-| Backend | Jest + Supertest + mongodb-memory-server | **133** | Cada endpoint e status; cada regra de negócio nos limites (2/3/120/121 caracteres, `0`, `0.01`, `-1`, `1.5`, texto, `null`, só espaços); busca, filtros (faixa de estoque e de preço), ordenação com acento, paginação; `If-Match`/`412`; exclusão lógica e restauração (inclusive a grafia da categoria); operações em lote (validação, limite de 100, grafia da categoria); JSON malformado; rota desconhecida; health com `503`; preço em centavos e migração do formato antigo; configuração validada; CSP, `X-Request-Id` e limite de escritas (`429`); service com repositório falso; resumo por categoria; funções puras |
+| Backend | Jest + Supertest + mongodb-memory-server | **139** | Cada endpoint e status; cada regra de negócio nos limites (2/3/120/121 caracteres, `0`, `0.01`, `-1`, `1.5`, texto, `null`, só espaços); busca, filtros (faixa de estoque e de preço), ordenação com acento, paginação; `If-Match`/`412`; exclusão lógica e restauração (inclusive a grafia da categoria); lixeira com expiração (índice TTL parcial criado e ajustado, e o produto excluído apagado de verdade do banco num `mongod` com o monitor TTL acelerado); operações em lote (validação, limite de 100, grafia da categoria); JSON malformado; rota desconhecida; health com `503`; preço em centavos e migração do formato antigo; configuração validada; CSP, `X-Request-Id` e limite de escritas (`429`); service com repositório falso; resumo por categoria; funções puras |
 | Frontend | Vitest + Testing Library | **73** | Esquema zod (mesmos casos da API); `ApiError` para cada tipo de falha; `ProductForm` criando e editando, erro da API no campo certo, estado de envio, descarte com confirmação no Cancelar, no voltar do navegador e nenhuma depois de salvar; `ConfirmDialog` (foco, Esc, Tab, clique no fundo, ocupado); `ProductList` com carregando, erro + tentar de novo, vazio, exclusão confirmada/cancelada/falhando, desfazer exclusão, busca com debounce, filtros de estoque e preço, tamanho da página, atalho `/` e ações em lote (seleção, excluir com desfazer, mudar categoria, exportar selecionados); `Layout` com atalho `N` e alternância de tema |
 | Contrato | Postman / Newman | **15 req. / 17 asserções** | Fluxo ponta a ponta contra a API real: criar → listar → buscar → atualizar → conflito → remover → 404 |
 
@@ -460,7 +466,7 @@ npm run test:coverage  # só no backend: testes + meta de cobertura
 
 - 🔎 **Busca, filtros por categoria, faixa de estoque (em estoque / baixo / esgotado) e faixa de preço, ordenação e paginação com itens por página configurável** — no servidor, com o estado na URL.
 - 📊 **Indicadores do catálogo**: produtos, unidades, valor em estoque, estoque baixo e esgotados (os dois últimos clicáveis para filtrar), via `GET /categories`.
-- ↩️ **Desfazer exclusão**: a exclusão é lógica no backend, e o aviso de "excluído" traz um botão **Desfazer** por alguns segundos.
+- ↩️ **Desfazer exclusão**: o aviso de "excluído" traz um botão **Desfazer** por alguns segundos; no backend o produto fica numa lixeira que se esvazia sozinha (índice TTL), então o registro não fica para sempre no banco.
 - ☑️ **Ações em lote**: seleção múltipla (inclusive a página inteira) para excluir com desfazer, mudar a categoria ou exportar só os selecionados.
 - ⌨️ **Atalhos de teclado**: <kbd>/</kbd> foca a busca e <kbd>N</kbd> abre um novo produto (ignorados enquanto se digita num campo ou com um diálogo aberto).
 - 🏷️ **Selo de estoque**: "Em estoque", "Estoque baixo" (≤ 5) e "Esgotado".
@@ -470,7 +476,7 @@ npm run test:coverage  # só no backend: testes + meta de cobertura
 - ⚠️ **Aviso de alterações não salvas** em qualquer saída do formulário (Cancelar, "← Voltar", links do topo, botão voltar do navegador) e ao fechar a aba.
 - 📚 **Swagger UI** a partir do contrato OpenAPI + **coleção Postman** com testes.
 - 🐳 **Docker** em um comando, com healthcheck (que acusa o banco fora do ar), usuário não-root, seed automático e encerramento gracioso no `SIGTERM`.
-- 🧪 **206 testes automatizados** + contrato Newman, e **CI** para GitHub e GitLab (com lint, typecheck e formatação).
+- 🧪 **212 testes automatizados** + contrato Newman, e **CI** para GitHub e GitLab (com lint, typecheck e formatação).
 - 🌙 **Tema escuro**: segue o sistema operacional por padrão e tem botão para alternar no topo; a escolha fica salva no navegador e é aplicada antes da primeira pintura (sem piscar o tema errado).
 - 🛡️ CSP com hash do script inline, CORS fechado em produção, limite de escritas por minuto, limite de corpo (100 KB), regex de busca escapada (sem injeção de padrão), configuração validada na subida e mensagens internas que nunca vazam no `500`.
 - 📜 Logs estruturados (pino) com `X-Request-Id` por requisição.
@@ -481,7 +487,7 @@ npm run test:coverage  # só no backend: testes + meta de cobertura
 ## 9. Limitações e próximos passos
 
 - **Autenticação/autorização** não fazia parte do escopo; o caminho natural seria JWT com papéis protegendo as rotas de escrita.
-- **Exclusão lógica sem expurgo**: produtos excluídos ficam no banco indefinidamente. Em produção caberia uma rotina que apague de vez os excluídos há mais de N dias (ou um índice TTL em `deletedAt`) e, se fizer sentido, uma tela de lixeira.
+- **Lixeira sem tela própria**: depois que o aviso de "Desfazer" some, restaurar um produto só é possível pela API (`POST /products/:id/restore`), e só dentro do prazo da lixeira. Se o prazo crescer (dias, por exemplo), caberia uma tela de lixeira.
 - **`GET /products` sem paginação devolve o catálogo inteiro**, como pede o desafio. Em produção caberia um teto ou paginação obrigatória (e streaming na exportação CSV).
 - **Limite de escritas em memória**: conta por processo; com várias instâncias, o contador iria para um armazenamento compartilhado (Redis). Atrás de proxy reverso, seria preciso configurar o `trust proxy` do Express para ler o IP real.
 - **Busca por regex** atende bem um catálogo de milhares de itens; para volumes maiores, índice de texto ou Atlas Search.

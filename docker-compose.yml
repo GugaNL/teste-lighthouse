@@ -12,6 +12,8 @@ services:
       - CORS_ORIGIN=${CORS_ORIGIN:-}
       # Cria o catálogo de demonstração na primeira subida (só se estiver vazio).
       - SEED_ON_START=${SEED_ON_START:-true}
+      # Minutos até o produto excluído ser apagado de vez do banco.
+      - DELETED_RETENTION_MINUTES=${DELETED_RETENTION_MINUTES:-10}
     depends_on:
       mongo:
         condition: service_healthy

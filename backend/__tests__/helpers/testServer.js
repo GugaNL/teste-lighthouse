@@ -4,8 +4,8 @@ let mongod;
 let app;
 let mongoose;
 
-async function start({ frontendDir = '/nao-existe' } = {}) {
-  mongod = await MongoMemoryServer.create();
+async function start({ frontendDir = '/nao-existe', mongodArgs = [] } = {}) {
+  mongod = await MongoMemoryServer.create({ instance: { args: mongodArgs } });
 
   process.env.NODE_ENV = 'test';
   process.env.MONGO_URL = mongod.getUri('catalogo-produtos-test');

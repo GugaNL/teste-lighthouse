@@ -7,6 +7,7 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 const NIVEIS_DE_LOG = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'];
+const MINUTOS_NUM_ANO = 525_600;
 
 const esquema = Joi.object({
   NODE_ENV: Joi.string().valid('development', 'production', 'test').empty('').default('development'),
@@ -27,6 +28,7 @@ const esquema = Joi.object({
     .allow('')
     .when('NODE_ENV', { is: 'production', then: Joi.any().default(''), otherwise: Joi.any().default('*') }),
   SEED_ON_START: Joi.boolean().truthy('true').falsy('false').empty('').default(false),
+  DELETED_RETENTION_MINUTES: Joi.number().integer().min(1).max(MINUTOS_NUM_ANO).empty('').default(10),
   RATE_LIMIT_WRITES_PER_MINUTE: Joi.number()
     .integer()
     .min(0)
@@ -53,6 +55,7 @@ module.exports = {
   mongoUrl: env.MONGO_URL,
   corsOrigin: env.CORS_ORIGIN,
   seedOnStart: env.SEED_ON_START,
+  deletedRetentionMinutes: env.DELETED_RETENTION_MINUTES,
   rateLimitWritesPerMinute: env.RATE_LIMIT_WRITES_PER_MINUTE,
   logLevel: env.LOG_LEVEL,
   produto: 'Catálogo de Produtos',

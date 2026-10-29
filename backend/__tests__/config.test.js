@@ -26,6 +26,7 @@ describe('configuração validada na subida', () => {
       corsOrigin: '*',
       seedOnStart: true,
       rateLimitWritesPerMinute: 120,
+      deletedRetentionMinutes: 10,
     });
   });
 
@@ -44,6 +45,8 @@ describe('configuração validada na subida', () => {
     [{ MONGO_URL: 'postgres://x' }, /mongodb:\/\//],
     [{ LOG_LEVEL: 'barulhento' }, /LOG_LEVEL/],
     [{ RATE_LIMIT_WRITES_PER_MINUTE: '-1' }, /RATE_LIMIT_WRITES_PER_MINUTE/],
+    [{ DELETED_RETENTION_MINUTES: '0' }, /DELETED_RETENTION_MINUTES/],
+    [{ DELETED_RETENTION_MINUTES: 'dez' }, /DELETED_RETENTION_MINUTES/],
   ])('recusa valor inválido %j', (env, mensagem) => {
     expect(() => carregar({ NODE_ENV: 'development', ...env })).toThrow(mensagem);
   });

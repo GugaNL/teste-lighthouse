@@ -13,6 +13,8 @@ const { COLLATION } = ProductSchema;
 
 const ATIVO = { deletedAt: null };
 const SEM_TIMESTAMPS = { timestamps: false };
+const INDICE_DA_LIXEIRA = 'expira_excluidos';
+const NAMESPACE_INEXISTENTE = 26;
 
 /**
  * @typedef {object} ProductFilters
@@ -151,6 +153,44 @@ class ProductRepository extends Repository {
       { runValidators: true }
     );
     return modifiedCount;
+  }
+
+  /**
+   * Índice TTL que apaga do banco os produtos excluídos há mais de `segundos`.
+   * Fica fora do schema porque o prazo vem da configuração e o MongoDB não
+   * recria um índice TTL com outro prazo: a mudança é feita com `collMod`.
+   *
+   * @param {number} segundos
+   * @returns {Promise<'created' | 'updated' | 'unchanged'>}
+   */
+  async ensureTrashExpiration(segundos) {
+    const colecao = ProductSchema.collection;
+    const indices = await colecao.indexes().catch((erro) => {
+      if (erro?.code === NAMESPACE_INEXISTENTE) return [];
+      throw erro;
+    });
+    const atual = indices.find((indice) => indice.name === INDICE_DA_LIXEIRA);
+
+    if (!atual) {
+      await colecao.createIndex(
+        { deletedAt: 1 },
+        {
+          name: INDICE_DA_LIXEIRA,
+          expireAfterSeconds: segundos,
+          partialFilterExpression: { deletedAt: { $type: 'date' } },
+        }
+      );
+      return 'created';
+    }
+    if (atual.expireAfterSeconds === segundos) return 'unchanged';
+
+    const banco = ProductSchema.db.db;
+    if (!banco) throw new Error('MongoDB não conectado');
+    await banco.command({
+      collMod: colecao.collectionName,
+      index: { name: INDICE_DA_LIXEIRA, expireAfterSeconds: segundos },
+    });
+    return 'updated';
   }
 
   async migratePriceToCents() {

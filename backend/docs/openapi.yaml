@@ -11,8 +11,8 @@ info:
 
     **Além do pedido** (compatível com o contrato): filtros, ordenação e
     paginação opcionais na listagem, resumo por categoria, controle de
-    concorrência otimista com `ETag`/`If-Match`, exclusão lógica com
-    restauração, operações em lote e health check.
+    concorrência otimista com `ETag`/`If-Match`, lixeira com restauração
+    e expiração automática, operações em lote e health check.
 
     Toda resposta de erro tem o mesmo formato (`Error`), com mensagens em
     português prontas para exibir ao usuário.
@@ -187,9 +187,12 @@ paths:
       tags: [Produtos]
       summary: Remove um produto
       description: |
-        Exclusão lógica: o produto deixa de aparecer em todas as leituras
-        (inclusive `GET /products/{id}`, que passa a responder `404`), mas
-        pode ser restaurado com `POST /products/{id}/restore`.
+        O produto deixa de aparecer na hora em todas as leituras (inclusive
+        `GET /products/{id}`, que passa a responder `404`) e vai para a lixeira.
+        Ele é apagado definitivamente do banco depois de
+        `DELETED_RETENTION_MINUTES` (padrão 10 min, por um índice TTL do
+        MongoDB, que verifica os vencidos a cada 60 s). Até lá pode ser
+        restaurado com `POST /products/{id}/restore`.
       responses:
         '204':
           description: Produto removido (sem corpo)
@@ -205,6 +208,8 @@ paths:
       summary: Restaura um produto excluído
       description: |
         Desfaz a exclusão; o produto volta como estava (mesma versão e `updatedAt`).
+        Só funciona dentro do prazo da lixeira (`DELETED_RETENTION_MINUTES`):
+        depois disso o produto já foi apagado do banco e a resposta é `404`.
         Exceção: se a categoria passou a ser gravada com outra capitalização enquanto
         ele estava excluído, o produto adota a grafia atual e ganha uma versão nova.
       responses:
@@ -228,7 +233,7 @@ paths:
     post:
       tags: [Lote]
       summary: Exclui vários produtos
-      description: Exclusão lógica; ids inexistentes ou já excluídos são ignorados.
+      description: Move para a lixeira, como o `DELETE` individual; ids inexistentes ou já excluídos são ignorados.
       requestBody:
         required: true
         content:
