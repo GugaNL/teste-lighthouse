@@ -4,7 +4,7 @@ const category = require('./category.router');
 const docs = require('./docs.router');
 
 module.exports = (server) => {
-  product(server, new Router());
-  category(server, new Router());
-  docs(server, new Router());
+  product(server, Router());
+  category(server, Router());
+  docs(server, Router());
 };

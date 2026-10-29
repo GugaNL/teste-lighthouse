@@ -1,8 +1,11 @@
 const { randomUUID } = require('crypto');
-const pinoHttp = require('pino-http');
+const { pinoHttp } = require('pino-http');
 const logger = require('./logger');
 
 const ID_VALIDO = /^[\w.-]{1,100}$/;
+
+/** @param {import('http').IncomingMessage} req */
+const urlOriginal = (req) => /** @type {import('express').Request} */ (req).originalUrl ?? req.url;
 
 module.exports = pinoHttp({
   logger,
@@ -18,8 +21,8 @@ module.exports = pinoHttp({
     if (res.statusCode >= 400) return 'warn';
     return 'info';
   },
-  customSuccessMessage: (req, res, ms) => `${req.method} ${req.originalUrl} ${res.statusCode} ${ms}ms`,
-  customErrorMessage: (req, res) => `${req.method} ${req.originalUrl} ${res.statusCode}`,
+  customSuccessMessage: (req, res, ms) => `${req.method} ${urlOriginal(req)} ${res.statusCode} ${ms}ms`,
+  customErrorMessage: (req, res) => `${req.method} ${urlOriginal(req)} ${res.statusCode}`,
   serializers: {
     req: (req) => ({ id: req.id, method: req.method, url: req.url }),
     res: (res) => ({ statusCode: res.statusCode }),

@@ -15,13 +15,27 @@ afterEach(() => {
 
 describe('configuração validada na subida', () => {
   it('aplica os padrões de desenvolvimento', () => {
-    const config = carregar({ NODE_ENV: 'development', PORT: '', CORS_ORIGIN: undefined, SEED_ON_START: 'true' });
-    expect(config).toMatchObject({ port: 4008, corsOrigin: '*', seedOnStart: true, rateLimitWritesPerMinute: 120 });
+    const config = carregar({
+      NODE_ENV: 'development',
+      PORT: '',
+      CORS_ORIGIN: undefined,
+      SEED_ON_START: 'true',
+    });
+    expect(config).toMatchObject({
+      port: 4008,
+      corsOrigin: '*',
+      seedOnStart: true,
+      rateLimitWritesPerMinute: 120,
+    });
   });
 
   it('em produção exige MONGO_URL e fecha o CORS por padrão', () => {
     expect(() => carregar({ NODE_ENV: 'production', MONGO_URL: '' })).toThrow(/MONGO_URL é obrigatória/);
-    const config = carregar({ NODE_ENV: 'production', MONGO_URL: 'mongodb://banco/catalogo', CORS_ORIGIN: undefined });
+    const config = carregar({
+      NODE_ENV: 'production',
+      MONGO_URL: 'mongodb://banco/catalogo',
+      CORS_ORIGIN: undefined,
+    });
     expect(config.corsOrigin).toBe('');
   });
 

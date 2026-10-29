@@ -8,7 +8,7 @@ const { seed } = require('../src/infra/seed');
     const total = await seed();
     console.log(`[seed] ${total} produtos criados em ${config.mongoUrl}`);
   } catch (erro) {
-    console.error('[seed] Falhou:', erro.message);
+    console.error('[seed] Falhou:', erro instanceof Error ? erro.message : erro);
     console.error('[seed] O MongoDB está no ar? Em dev, rode `npm run db` em outro terminal.');
     process.exitCode = 1;
   } finally {

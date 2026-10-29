@@ -24,8 +24,7 @@ const SORT_FIELDS = ['name', 'price', 'stock', 'createdAt', 'updatedAt'];
 const SORT_OPTIONS = SORT_FIELDS.flatMap((campo) => [campo, `-${campo}`]);
 const DEFAULT_SORT = '-createdAt';
 
-const normalizeText = (texto) =>
-  typeof texto === 'string' ? texto.trim().replace(/\s+/g, ' ') : texto;
+const normalizeText = (texto) => (typeof texto === 'string' ? texto.trim().replace(/\s+/g, ' ') : texto);
 
 const hasAtMostTwoDecimals = (valor) =>
   Number.isFinite(valor) && Math.abs(Math.round(valor * 100) - valor * 100) < 1e-6;
@@ -34,6 +33,10 @@ const escapeRegex = (texto) => texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const CAMPO_NO_BANCO = { price: 'priceCents' };
 
+/**
+ * @param {string} [sort]
+ * @returns {Record<string, 1 | -1>}
+ */
 const toMongoSort = (sort = DEFAULT_SORT) => {
   const opcao = SORT_OPTIONS.includes(sort) ? sort : DEFAULT_SORT;
   const desc = opcao.startsWith('-');

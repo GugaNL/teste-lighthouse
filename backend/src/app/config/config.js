@@ -35,7 +35,11 @@ const esquema = Joi.object({
   LOG_LEVEL: Joi.string()
     .valid(...NIVEIS_DE_LOG)
     .empty('')
-    .when('NODE_ENV', { is: 'test', then: Joi.any().default('silent'), otherwise: Joi.any().default('info') }),
+    .when('NODE_ENV', {
+      is: 'test',
+      then: Joi.any().default('silent'),
+      otherwise: Joi.any().default('info'),
+    }),
 }).unknown(true);
 
 const { error, value: env } = esquema.validate(process.env, { abortEarly: false });

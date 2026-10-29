@@ -54,7 +54,8 @@ class ProductService {
     const restaurado = await this.repository.restore(id);
     if (!restaurado) throw new NotFound(RECURSO);
     const ajustados = await this.alignCategorySpelling([id]);
-    return ajustados ? this.repository.getById(id) : restaurado;
+    const atualizado = ajustados ? await this.repository.getById(id) : null;
+    return atualizado ?? restaurado;
   }
 
   async removeMany(ids) {

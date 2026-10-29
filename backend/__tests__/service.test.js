@@ -22,7 +22,9 @@ describe('ProductService com repositório injetado (sem banco)', () => {
     const semProduto = new ProductService(repositorioFalso());
     await expect(semProduto.update('abc', dados, 1)).rejects.toBeInstanceOf(NotFound);
 
-    const outraVersao = new ProductService(repositorioFalso({ getById: jest.fn().mockResolvedValue({ version: 4 }) }));
+    const outraVersao = new ProductService(
+      repositorioFalso({ getById: jest.fn().mockResolvedValue({ version: 4 }) })
+    );
     await expect(outraVersao.update('abc', dados, 1)).rejects.toMatchObject({
       constructor: PreconditionFailed,
       currentVersion: 4,
@@ -31,12 +33,16 @@ describe('ProductService com repositório injetado (sem banco)', () => {
 
   it('update recusa If-Match ilegível antes de ir ao repositório', async () => {
     const repositorio = repositorioFalso();
-    await expect(new ProductService(repositorio).update('abc', dados, NaN)).rejects.toBeInstanceOf(BadRequest);
+    await expect(new ProductService(repositorio).update('abc', dados, NaN)).rejects.toBeInstanceOf(
+      BadRequest
+    );
     expect(repositorio.updateVersioned).not.toHaveBeenCalled();
   });
 
   it('normaliza o texto e reaproveita a grafia de categoria que o repositório devolve', async () => {
-    const service = new ProductService(repositorioFalso({ findCategorySpelling: jest.fn().mockResolvedValue('Casa') }));
+    const service = new ProductService(
+      repositorioFalso({ findCategorySpelling: jest.fn().mockResolvedValue('Casa') })
+    );
     expect(await service.normalize(dados)).toEqual({
       name: 'Mouse sem fio',
       description: 'x',

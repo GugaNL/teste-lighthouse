@@ -182,7 +182,13 @@ describe('POST /products', () => {
 describe('GET /products', () => {
   const semear = async () => {
     await criar({ name: 'Notebook Vortex', price: 4899.9, stock: 12, category: 'Informática' });
-    await criar({ name: 'Mouse sem fio', price: 249.9, stock: 0, category: 'Informática', description: 'Sensor óptico' });
+    await criar({
+      name: 'Mouse sem fio',
+      price: 249.9,
+      stock: 0,
+      category: 'Informática',
+      description: 'Sensor óptico',
+    });
     await criar({ name: 'Ábaco de madeira', price: 39.9, stock: 3, category: 'Brinquedos' });
     await criar({ name: 'Cafeteira (expresso)', price: 899, stock: 9, category: 'Casa' });
   };
@@ -392,10 +398,7 @@ describe('PUT /products/:id', () => {
   describe('concorrência otimista com If-Match', () => {
     it('grava quando a versão confere', async () => {
       const { body: criado } = await criar();
-      const res = await request(app)
-        .put(`/products/${criado.id}`)
-        .set('If-Match', '"1"')
-        .send(atualizacao);
+      const res = await request(app).put(`/products/${criado.id}`).set('If-Match', '"1"').send(atualizacao);
       expect(res.status).toBe(200);
       expect(res.body.version).toBe(2);
     });
@@ -423,10 +426,7 @@ describe('PUT /products/:id', () => {
 
     it('responde 400 para um If-Match que não é versão', async () => {
       const { body: criado } = await criar();
-      const res = await request(app)
-        .put(`/products/${criado.id}`)
-        .set('If-Match', 'abc')
-        .send(atualizacao);
+      const res = await request(app).put(`/products/${criado.id}`).set('If-Match', 'abc').send(atualizacao);
       expect(res.status).toBe(400);
       expect(res.body.message).toMatch(/If-Match/);
     });
@@ -484,7 +484,9 @@ describe('DELETE /products/:id', () => {
   it('produto excluído não pode ser editado', async () => {
     const { body: criado } = await criar();
     await request(app).delete(`/products/${criado.id}`);
-    const res = await request(app).put(`/products/${criado.id}`).send(produtoValido({ name: 'Outro nome' }));
+    const res = await request(app)
+      .put(`/products/${criado.id}`)
+      .send(produtoValido({ name: 'Outro nome' }));
     expect(res.status).toBe(404);
   });
 

@@ -14,12 +14,30 @@ const { COLLATION } = ProductSchema;
 const ATIVO = { deletedAt: null };
 const SEM_TIMESTAMPS = { timestamps: false };
 
+/**
+ * @typedef {object} ProductFilters
+ * @property {string} [search]
+ * @property {string} [category]
+ * @property {boolean} [inStock]
+ * @property {'out' | 'low' | 'ok'} [stockStatus]
+ * @property {number} [minPrice]
+ * @property {number} [maxPrice]
+ *
+ * @typedef {ProductFilters & { page?: number, limit?: number, sort?: string }} ProductListParams
+ * @typedef {Record<string, any>} MongoFilter
+ */
+
 class ProductRepository extends Repository {
   constructor() {
     super(ProductSchema);
   }
 
+  /**
+   * @param {ProductFilters} [filtros]
+   * @returns {MongoFilter}
+   */
   static buildQuery({ search, category, inStock, stockStatus, minPrice, maxPrice } = {}) {
+    /** @type {MongoFilter} */
     const query = { ...ATIVO };
 
     if (search) {
@@ -39,6 +57,7 @@ class ProductRepository extends Repository {
     return query;
   }
 
+  /** @param {ProductListParams} [params] */
   async list({ page, limit, sort, ...filtros } = {}) {
     const query = ProductRepository.buildQuery(filtros);
     const consulta = ProductSchema.find(query).sort(toMongoSort(sort)).collation(COLLATION).lean();
@@ -61,6 +80,7 @@ class ProductRepository extends Repository {
   }
 
   async findCategorySpelling(category, exceto) {
+    /** @type {MongoFilter} */
     const filtro = { category, ...ATIVO };
     if (Array.isArray(exceto)) filtro._id = { $nin: exceto };
     else if (exceto) filtro._id = { $ne: exceto };
@@ -73,6 +93,7 @@ class ProductRepository extends Repository {
   }
 
   async updateVersioned(id, payload, expectedVersion) {
+    /** @type {MongoFilter} */
     const filtro = { _id: id, ...ATIVO };
     if (expectedVersion !== undefined) filtro.version = expectedVersion;
 

@@ -19,8 +19,12 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
       # Sobe um MongoDB em memória (mongodb-memory-server): sem serviço externo.
-      - run: npm test
+      # Falha se a cobertura cair abaixo da meta do package.json.
+      - run: npm run test:coverage
 
   frontend:
     runs-on: ubuntu-latest

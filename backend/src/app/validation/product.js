@@ -29,9 +29,7 @@ const price = Joi.number()
   .strict()
   .positive()
   .max(LIMITS.price.max)
-  .custom((valor, helpers) =>
-    hasAtMostTwoDecimals(valor) ? valor : helpers.error('number.twoDecimals')
-  )
+  .custom((valor, helpers) => (hasAtMostTwoDecimals(valor) ? valor : helpers.error('number.twoDecimals')))
   .required()
   .messages({
     'any.required': 'Preço é obrigatório',
@@ -42,21 +40,15 @@ const price = Joi.number()
     'number.twoDecimals': 'Preço deve ter no máximo 2 casas decimais',
   });
 
-const stock = Joi.number()
-  .strict()
-  .integer()
-  .min(0)
-  .max(LIMITS.stock.max)
-  .required()
-  .messages({
-    'any.required': 'Estoque é obrigatório',
-    'number.base': 'Estoque deve ser um número',
-    'number.integer': 'Estoque deve ser um número inteiro',
-    'number.min': 'Estoque não pode ser negativo',
-    'number.max': 'Estoque acima do limite permitido',
-    'number.unsafe': 'Estoque acima do limite permitido',
-    'number.infinity': 'Estoque deve ser um número',
-  });
+const stock = Joi.number().strict().integer().min(0).max(LIMITS.stock.max).required().messages({
+  'any.required': 'Estoque é obrigatório',
+  'number.base': 'Estoque deve ser um número',
+  'number.integer': 'Estoque deve ser um número inteiro',
+  'number.min': 'Estoque não pode ser negativo',
+  'number.max': 'Estoque acima do limite permitido',
+  'number.unsafe': 'Estoque acima do limite permitido',
+  'number.infinity': 'Estoque deve ser um número',
+});
 
 const category = Joi.string()
   .trim()
@@ -70,17 +62,19 @@ const category = Joi.string()
     'string.max': `Categoria deve ter no máximo ${LIMITS.category.max} caracteres`,
   });
 
-const save = Joi.object({ name, description, price, stock, category })
-  .required()
-  .messages({
-    'object.base': 'O corpo da requisição deve ser um objeto JSON',
-    'any.required': 'O corpo da requisição é obrigatório',
-  });
+const save = Joi.object({ name, description, price, stock, category }).required().messages({
+  'object.base': 'O corpo da requisição deve ser um objeto JSON',
+  'any.required': 'O corpo da requisição é obrigatório',
+});
 
 const listQuery = Joi.object({
-  search: Joi.string().trim().max(LIMITS.search.max).allow('').messages({
-    'string.max': `Busca deve ter no máximo ${LIMITS.search.max} caracteres`,
-  }),
+  search: Joi.string()
+    .trim()
+    .max(LIMITS.search.max)
+    .allow('')
+    .messages({
+      'string.max': `Busca deve ter no máximo ${LIMITS.search.max} caracteres`,
+    }),
   category: Joi.string().trim().max(LIMITS.category.max).allow(''),
   inStock: Joi.boolean().messages({ 'boolean.base': 'inStock deve ser true ou false' }),
   stockStatus: Joi.string()
@@ -105,21 +99,29 @@ const listQuery = Joi.object({
     'number.integer': 'page deve ser um inteiro a partir de 1',
     'number.min': 'page deve ser um inteiro a partir de 1',
   }),
-  limit: Joi.number().integer().min(1).max(LIMITS.pageSize.max).messages({
-    'number.base': `limit deve ser um inteiro entre 1 e ${LIMITS.pageSize.max}`,
-    'number.integer': `limit deve ser um inteiro entre 1 e ${LIMITS.pageSize.max}`,
-    'number.min': `limit deve ser um inteiro entre 1 e ${LIMITS.pageSize.max}`,
-    'number.max': `limit deve ser um inteiro entre 1 e ${LIMITS.pageSize.max}`,
-  }),
+  limit: Joi.number()
+    .integer()
+    .min(1)
+    .max(LIMITS.pageSize.max)
+    .messages({
+      'number.base': `limit deve ser um inteiro entre 1 e ${LIMITS.pageSize.max}`,
+      'number.integer': `limit deve ser um inteiro entre 1 e ${LIMITS.pageSize.max}`,
+      'number.min': `limit deve ser um inteiro entre 1 e ${LIMITS.pageSize.max}`,
+      'number.max': `limit deve ser um inteiro entre 1 e ${LIMITS.pageSize.max}`,
+    }),
 });
 
 const MENSAGEM_ID = 'ID inválido — deve ter 24 caracteres hexadecimais.';
 
 const ids = Joi.array()
-  .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/).messages({
-    'string.base': MENSAGEM_ID,
-    'string.pattern.base': MENSAGEM_ID,
-  }))
+  .items(
+    Joi.string()
+      .pattern(/^[0-9a-fA-F]{24}$/)
+      .messages({
+        'string.base': MENSAGEM_ID,
+        'string.pattern.base': MENSAGEM_ID,
+      })
+  )
   .min(1)
   .max(LIMITS.batch.max)
   .unique()

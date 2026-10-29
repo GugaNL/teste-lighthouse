@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
+const { default: helmet } = require('helmet');
 const path = require('path');
 const fs = require('fs');
 const { createHash } = require('crypto');
@@ -15,8 +15,7 @@ const RouteNotFound = require('./app/errors/RouteNotFound');
 const TooManyRequests = require('./app/errors/TooManyRequests');
 const { respondWithError } = require('./app/helpers/respondWithError');
 
-const FRONTEND_DIR =
-  process.env.FRONTEND_DIR || path.resolve(__dirname, '..', '..', 'frontend', 'dist');
+const FRONTEND_DIR = process.env.FRONTEND_DIR || path.resolve(__dirname, '..', '..', 'frontend', 'dist');
 
 const API_PREFIXES = ['/products', '/categories', '/docs', '/health'];
 const MONGO_CONECTADO = 1;
@@ -132,7 +131,7 @@ class App {
   }
 
   errorHandler() {
-    this.server.use((err, req, res, next) => {
+    this.server.use((err, req, res, _next) => {
       if (err?.type === 'entity.parse.failed') {
         return respondWithError(res, new BadRequest('JSON inválido no corpo da requisição.'));
       }

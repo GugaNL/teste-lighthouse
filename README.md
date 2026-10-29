@@ -110,7 +110,8 @@ npm --prefix frontend run dev
 | `npm run dev` | Banco + API + frontend com recarga automática |
 | `npm run seed` | **Apaga** os produtos e recria o catálogo de demonstração |
 | `npm test` | Testes do backend (Jest) e do frontend (Vitest) |
-| `npm run lint` | ESLint e typecheck (`tsc`) do frontend |
+| `npm run lint` | ESLint e typecheck (`tsc`) do backend e do frontend |
+| `npm run format:check` | Prettier do backend e do frontend |
 | `npm run test:api` | Roda a coleção Postman (Newman) contra a API no ar |
 | `npm run build` | Build de produção do frontend (em `frontend/dist`) |
 | `npm start` | API sem recarga automática, servindo também o build do frontend em http://localhost:4008 (rode `npm run build` antes; precisa do MongoDB no ar — em dev, `npm --prefix backend run db`) |
@@ -298,7 +299,7 @@ curl -i -X POST http://localhost:4008/products/batch/category -H "Content-Type: 
 | Frontend | **React 18 + TypeScript + Vite + React Router 6 + axios + Sass** | TypeScript estrito com os tipos do domínio num lugar só ([`types/`](frontend/src/types)) |
 | Dados no frontend | **TanStack Query 5** | Cache, cancelamento, nova tentativa e invalidação depois de cada escrita, sem estado global à mão |
 | Formulário | **react-hook-form + zod** | Validação declarativa com as mesmas mensagens do Joi; a saída do esquema já é o corpo da requisição |
-| Qualidade | **ESLint (typescript-eslint, react-hooks, jsx-a11y) + Prettier** | Lint com tipos e regras de acessibilidade; formatação conferida no CI |
+| Qualidade | **ESLint + Prettier nos dois lados; TypeScript no frontend e `checkJs` (JSDoc) no backend** | Frontend com lint por tipos e acessibilidade (typescript-eslint, react-hooks, jsx-a11y); backend com os tipos de Express, Mongoose e Joi conferidos pelo `tsc` sem reescrever em TS; formatação e cobertura mínima conferidas no CI |
 | Testes | **Jest + Supertest + mongodb-memory-server** / **Vitest + Testing Library** | Testes de integração com MongoDB real em memória, sem mocks de banco |
 | Entrega | **Docker multi-stage + Compose** | Um container serve API e site: um serviço, um domínio, sem CORS |
 
@@ -382,6 +383,8 @@ A fronteira é o `export`: quem importa um módulo lê uma API em inglês, como 
 │   ├── docs/
 │   │   ├── openapi.yaml              # contrato da API (servido em /docs)
 │   │   └── postman_collection.json   # fluxo completo com testes (Newman)
+│   ├── eslint.config.js              # ESLint + Prettier
+│   ├── tsconfig.json                 # checkJs: tipos conferidos nos .js via JSDoc
 │   ├── scripts/                      # db local (mongodb-memory-server) e seed
 │   ├── __tests__/                    # Jest + Supertest (MongoDB em memória)
 │   └── src/
@@ -441,13 +444,14 @@ npm run test:api    # coleção Postman contra a API no ar (npm run dev antes)
 | Frontend | Vitest + Testing Library | **73** | Esquema zod (mesmos casos da API); `ApiError` para cada tipo de falha; `ProductForm` criando e editando, erro da API no campo certo, estado de envio, descarte com confirmação no Cancelar, no voltar do navegador e nenhuma depois de salvar; `ConfirmDialog` (foco, Esc, Tab, clique no fundo, ocupado); `ProductList` com carregando, erro + tentar de novo, vazio, exclusão confirmada/cancelada/falhando, desfazer exclusão, busca com debounce, filtros de estoque e preço, tamanho da página, atalho `/` e ações em lote (seleção, excluir com desfazer, mudar categoria, exportar selecionados); `Layout` com atalho `N` e alternância de tema |
 | Contrato | Postman / Newman | **15 req. / 17 asserções** | Fluxo ponta a ponta contra a API real: criar → listar → buscar → atualizar → conflito → remover → 404 |
 
-O CI ([GitHub Actions](.github/workflows/ci.yml) e [GitLab CI](.gitlab-ci.yml)) roda as duas suítes; no frontend, também Prettier (`format:check`), ESLint e o typecheck (`tsc`, dentro do build). No GitHub Actions, por fim, a imagem Docker também é construída.
+O CI ([GitHub Actions](.github/workflows/ci.yml) e [GitLab CI](.gitlab-ci.yml)) roda, nos dois lados, Prettier (`format:check`), ESLint, o typecheck (`tsc`) e os testes. No backend os testes rodam com cobertura e **falham abaixo da meta** (88% de instruções e linhas, 80% de desvios, 85% de funções — hoje em ~90%); no frontend o typecheck roda dentro do build. No GitHub Actions, por fim, a imagem Docker também é construída.
 
 ```bash
-cd frontend
-npm run lint          # ESLint com tipos
-npm run typecheck     # tsc, sem emitir
-npm run format:check  # Prettier
+# em backend/ ou frontend/
+npm run lint           # ESLint
+npm run typecheck      # tsc, sem emitir (checkJs no backend)
+npm run format:check   # Prettier
+npm run test:coverage  # só no backend: testes + meta de cobertura
 ```
 
 ---
