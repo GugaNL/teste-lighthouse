@@ -1,18 +1,17 @@
-const serialize = (doc) => {
-  if (!doc) return doc;
-  const p = doc.toObject ? doc.toObject() : doc;
+const serialize = (produto) => {
+  if (!produto) return produto;
 
   return {
-    id: String(p._id),
-    name: p.name,
-    description: p.description || '',
-    price: p.price,
-    stock: p.stock,
-    category: p.category,
-    inStock: p.stock > 0,
-    version: p.version,
-    createdAt: p.createdAt,
-    updatedAt: p.updatedAt,
+    id: String(produto._id),
+    name: produto.name,
+    description: produto.description || '',
+    price: produto.price,
+    stock: produto.stock,
+    category: produto.category,
+    inStock: produto.stock > 0,
+    version: produto.version,
+    createdAt: produto.createdAt,
+    updatedAt: produto.updatedAt,
   };
 };
 

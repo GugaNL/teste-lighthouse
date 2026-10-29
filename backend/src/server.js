@@ -6,6 +6,8 @@ const { seedIfEmpty } = require('./infra/seed');
 
 const PRAZO_PARA_ENCERRAR_MS = 10_000;
 
+database.connect();
+
 const server = app.listen(config.port, () => {
   console.log(`[server] ${config.produto} — API na porta ${config.port}`);
   console.log(`[server] Documentação: http://localhost:${config.port}/docs`);

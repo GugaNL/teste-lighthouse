@@ -4,7 +4,8 @@ class Repository {
   }
 
   async create(payload) {
-    return this.schema.create(payload);
+    const criado = await this.schema.create(payload);
+    return criado.toObject();
   }
 }
 

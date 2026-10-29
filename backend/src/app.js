@@ -7,15 +7,17 @@ const mongoose = require('mongoose');
 const config = require('./app/config/config');
 const router = require('./routes');
 const requestLogger = require('./app/helpers/requestLogger');
-const { serializeErrors } = require('./app/serialize/errorSerialize');
-
-require('./infra/database/mongo');
+const BadRequest = require('./app/errors/BadRequest');
+const PayloadTooLarge = require('./app/errors/PayloadTooLarge');
+const RouteNotFound = require('./app/errors/RouteNotFound');
+const { respondWithError } = require('./app/helpers/respondWithError');
 
 const FRONTEND_DIR =
   process.env.FRONTEND_DIR || path.resolve(__dirname, '..', '..', 'frontend', 'dist');
 
 const API_PREFIXES = ['/products', '/categories', '/docs', '/health'];
 const MONGO_CONECTADO = 1;
+const LIMITE_DO_CORPO = '100kb';
 
 class App {
   constructor() {
@@ -37,7 +39,7 @@ class App {
         exposedHeaders: ['X-Total-Count', 'ETag', 'Location'],
       })
     );
-    this.server.use(express.json({ limit: '100kb' }));
+    this.server.use(express.json({ limit: LIMITE_DO_CORPO }));
     if (config.nodeEnv !== 'test') this.server.use(requestLogger);
   }
 
@@ -63,11 +65,7 @@ class App {
       if (!ehApi && req.method === 'GET' && this.temFrontend) {
         return next();
       }
-      return res.status(404).json({
-        statusCode: 404,
-        error: 'Not Found',
-        message: `Rota ${req.method} ${req.path} não encontrada.`,
-      });
+      return respondWithError(res, new RouteNotFound(req.method, req.path));
     });
   }
 
@@ -80,21 +78,10 @@ class App {
   errorHandler() {
     this.server.use((err, req, res, next) => {
       if (err?.type === 'entity.parse.failed') {
-        return res.status(400).json({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'JSON inválido no corpo da requisição.',
-        });
+        return respondWithError(res, new BadRequest('JSON inválido no corpo da requisição.'));
       }
-      if (err?.type === 'entity.too.large') {
-        return res.status(413).json({
-          statusCode: 413,
-          error: 'Payload Too Large',
-          message: 'Corpo da requisição maior que o permitido (100 KB).',
-        });
-      }
-      console.error('[erro]', err);
-      return res.status(500).json(serializeErrors(err));
+      if (err?.type === 'entity.too.large') return respondWithError(res, new PayloadTooLarge('100 KB'));
+      return respondWithError(res, err);
     });
   }
 }

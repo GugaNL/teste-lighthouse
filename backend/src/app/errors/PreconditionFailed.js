@@ -1,9 +1,8 @@
-class PreconditionFailed extends Error {
+const HttpError = require('./HttpError');
+
+class PreconditionFailed extends HttpError {
   constructor(message, currentVersion) {
-    super(message);
-    this.statusCode = 412;
-    this.error = 'Precondition Failed';
-    this.currentVersion = currentVersion;
+    super(412, 'Precondition Failed', message, { currentVersion });
   }
 }
 

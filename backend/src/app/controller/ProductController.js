@@ -1,98 +1,97 @@
-const ProductService = require('../service/ProductService');
+const { productService } = require('../service/ProductService');
 const { serialize } = require('../serialize/productSerialize');
-const { serializeErrors } = require('../serialize/errorSerialize');
+const { respondWithError } = require('../helpers/respondWithError');
 const { etagOf, parseIfMatch } = require('../rules/product');
 
 class ProductController {
-  async getAll(req, res) {
+  constructor(service = productService) {
+    this.service = service;
+  }
+
+  getAll = async (req, res) => {
     try {
-      const { docs, total } = await ProductService.getAll(req.query);
+      const { docs, total } = await this.service.getAll(res.locals.query);
       res.set('X-Total-Count', String(total));
       return res.status(200).json(docs.map(serialize));
     } catch (erro) {
-      return responderErro(res, erro);
+      return respondWithError(res, erro);
     }
-  }
+  };
 
-  async getById(req, res) {
+  getById = async (req, res) => {
     try {
-      const produto = await ProductService.getById(req.params.id);
+      const produto = await this.service.getById(req.params.id);
       res.set('ETag', etagOf(produto.version));
       return res.status(200).json(serialize(produto));
     } catch (erro) {
-      return responderErro(res, erro);
+      return respondWithError(res, erro);
     }
-  }
+  };
 
-  async create(req, res) {
+  create = async (req, res) => {
     try {
-      const produto = await ProductService.create(req.body);
+      const produto = await this.service.create(req.body);
       res.set('ETag', etagOf(produto.version));
       res.location(`${req.baseUrl}/${produto._id}`);
       return res.status(201).json(serialize(produto));
     } catch (erro) {
-      return responderErro(res, erro);
+      return respondWithError(res, erro);
     }
-  }
+  };
 
-  async update(req, res) {
+  update = async (req, res) => {
     try {
       const versaoEsperada = parseIfMatch(req.get('If-Match'));
-      const produto = await ProductService.update(req.params.id, req.body, versaoEsperada);
+      const produto = await this.service.update(req.params.id, req.body, versaoEsperada);
       res.set('ETag', etagOf(produto.version));
       return res.status(200).json(serialize(produto));
     } catch (erro) {
-      return responderErro(res, erro);
+      return respondWithError(res, erro);
     }
-  }
+  };
 
-  async remove(req, res) {
+  remove = async (req, res) => {
     try {
-      await ProductService.remove(req.params.id);
+      await this.service.remove(req.params.id);
       return res.status(204).end();
     } catch (erro) {
-      return responderErro(res, erro);
+      return respondWithError(res, erro);
     }
-  }
+  };
 
-  async restore(req, res) {
+  restore = async (req, res) => {
     try {
-      const produto = await ProductService.restore(req.params.id);
+      const produto = await this.service.restore(req.params.id);
       res.set('ETag', etagOf(produto.version));
       return res.status(200).json(serialize(produto));
     } catch (erro) {
-      return responderErro(res, erro);
+      return respondWithError(res, erro);
     }
-  }
+  };
 
-  async removeMany(req, res) {
+  removeMany = async (req, res) => {
     try {
-      return res.status(200).json(await ProductService.removeMany(req.body.ids));
+      return res.status(200).json(await this.service.removeMany(req.body.ids));
     } catch (erro) {
-      return responderErro(res, erro);
+      return respondWithError(res, erro);
     }
-  }
+  };
 
-  async restoreMany(req, res) {
+  restoreMany = async (req, res) => {
     try {
-      return res.status(200).json(await ProductService.restoreMany(req.body.ids));
+      return res.status(200).json(await this.service.restoreMany(req.body.ids));
     } catch (erro) {
-      return responderErro(res, erro);
+      return respondWithError(res, erro);
     }
-  }
+  };
 
-  async changeCategory(req, res) {
+  changeCategory = async (req, res) => {
     try {
-      return res.status(200).json(await ProductService.changeCategory(req.body.ids, req.body.category));
+      return res.status(200).json(await this.service.changeCategory(req.body.ids, req.body.category));
     } catch (erro) {
-      return responderErro(res, erro);
+      return respondWithError(res, erro);
     }
-  }
+  };
 }
 
-function responderErro(res, erro) {
-  if (!erro?.statusCode) console.error('[erro]', erro);
-  return res.status(erro?.statusCode || 500).json(serializeErrors(erro));
-}
-
-module.exports = new ProductController();
+module.exports = { ProductController, productController: new ProductController() };

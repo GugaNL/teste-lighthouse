@@ -13,7 +13,7 @@ async function start() {
 
   app = require('../../src/app');
   mongoose = require('mongoose');
-  await mongoose.connection.asPromise();
+  await require('../../src/infra/database/mongo').connect();
   await mongoose.model('Product').syncIndexes();
   return app;
 }

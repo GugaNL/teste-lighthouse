@@ -50,7 +50,7 @@ class ProductRepository extends Repository {
   }
 
   async getById(id) {
-    return ProductSchema.findOne({ _id: id, ...ATIVO });
+    return ProductSchema.findOne({ _id: id, ...ATIVO }).lean();
   }
 
   async findCategorySpelling(category, exceto) {
@@ -73,7 +73,7 @@ class ProductRepository extends Repository {
       filtro,
       { $set: payload, $inc: { version: 1 } },
       { new: true, runValidators: true }
-    );
+    ).lean();
   }
 
   async softDelete(id) {
@@ -81,7 +81,7 @@ class ProductRepository extends Repository {
       { _id: id, ...ATIVO },
       { $set: { deletedAt: new Date() } },
       SEM_TIMESTAMPS
-    );
+    ).lean();
   }
 
   async restore(id) {
@@ -89,7 +89,7 @@ class ProductRepository extends Repository {
       { _id: id, deletedAt: { $ne: null } },
       { $set: { deletedAt: null } },
       { new: true, ...SEM_TIMESTAMPS }
-    );
+    ).lean();
   }
 
   async softDeleteMany(ids) {
@@ -147,4 +147,4 @@ class ProductRepository extends Repository {
   }
 }
 
-module.exports = new ProductRepository();
+module.exports = { ProductRepository, productRepository: new ProductRepository() };

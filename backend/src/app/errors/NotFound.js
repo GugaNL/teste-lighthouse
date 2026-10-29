@@ -1,8 +1,8 @@
-class NotFound extends Error {
+const HttpError = require('./HttpError');
+
+class NotFound extends HttpError {
   constructor(recurso = 'Recurso') {
-    super(`${recurso} não encontrado.`);
-    this.statusCode = 404;
-    this.error = 'Not Found';
+    super(404, 'Not Found', `${recurso} não encontrado.`);
   }
 }
 

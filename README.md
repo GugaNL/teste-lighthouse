@@ -309,9 +309,11 @@ HTTP ─▶ routes ─▶ validation ─▶ controller ─▶ service ─▶ rep
 
 - **routes** só ligam URL → middlewares → controller.
 - **validation** responde `400` antes de qualquer acesso ao banco (corpo, query e formato do ID).
-- **controller** é fino: traduz HTTP (status, `Location`, `ETag`, `X-Total-Count`) e tem `try/catch` em cada método. Erros de domínio (`NotFound`, `PreconditionFailed`…) carregam o próprio `statusCode`.
+- **controller** é fino: traduz HTTP (status, `Location`, `ETag`, `X-Total-Count`) e tem `try/catch` em cada método. O Express 5 já repassaria o erro de um handler `async` ao tratador central, mas o `try/catch` fica explícito porque o desafio pede. Todos os erros esperados herdam de `HttpError` (`BadRequest`, `NotFound`, `RouteNotFound`, `PreconditionFailed`, `PayloadTooLarge`) e saem por uma única função, `respondWithError`, com o mesmo corpo; qualquer outro erro vira `500` sem vazar detalhes.
+- **Dependências injetadas**: o service recebe o repositório e os controllers recebem o service pelo construtor (com a instância padrão como valor default), então dá para testar o service com um repositório falso, sem banco.
+- **Inicialização explícita**: o `app.js` só monta o Express; quem conecta ao banco, sobe o servidor e encerra no `SIGTERM` é o `server.js`.
 - **service** concentra a regra: normalização do texto, reaproveitamento da grafia da categoria, decisão entre `404` e `412`.
-- **repository** isola o Mongoose (filtros, collation, paginação, agregação).
+- **repository** isola o Mongoose (filtros, collation, paginação, agregação) e sempre devolve objetos simples (`lean`), nunca documentos do Mongoose.
 - **rules/** são funções puras (limites, normalização, ordenação, parsing de `If-Match`) — testadas sem banco e lidas pela validação, pelo schema e pelo service, então um limite muda num lugar só.
 
 ### Validação em três camadas, com papéis diferentes
@@ -382,8 +384,8 @@ A fronteira é o `export`: quem importa um módulo lê uma API em inglês, como 
 │           ├── validation/           # Joi + middleware + ID
 │           ├── rules/                # funções puras do domínio
 │           ├── serialize/            # formato público do produto e dos erros
-│           ├── errors/               # BadRequest, NotFound, PreconditionFailed
-│           └── helpers/              # log de requisições
+│           ├── errors/               # HttpError e subclasses (400, 404, 412, 413)
+│           └── helpers/              # log de requisições e respondWithError
 ├── frontend/
 │   ├── eslint.config.js              # typescript-eslint + react-hooks + jsx-a11y + Prettier
 │   ├── tsconfig.json                 # app e testes (tsconfig.node.json: vite.config.ts)

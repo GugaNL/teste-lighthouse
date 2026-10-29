@@ -1,4 +1,4 @@
-const ProductController = require('../app/controller/ProductController');
+const { productController: ProductController } = require('../app/controller/ProductController');
 const idValidation = require('../app/validation/getIdValid');
 const { validate } = require('../app/validation/validate');
 const productValidation = require('../app/validation/product');

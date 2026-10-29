@@ -1,5 +1,5 @@
 const { validationError } = require('../serialize/handlingErrorsValidation');
-const { serializeErrors } = require('../serialize/errorSerialize');
+const { respondWithError } = require('../helpers/respondWithError');
 
 const validate =
   (schema, origem = 'body') =>
@@ -7,16 +7,10 @@ const validate =
     const entrada = req[origem] ?? {};
     const { error, value } = schema.validate(entrada, { abortEarly: false, stripUnknown: true });
 
-    if (error) {
-      const erro = validationError(error);
-      return res.status(erro.statusCode).json(serializeErrors(erro));
-    }
+    if (error) return respondWithError(res, validationError(error));
 
-    if (origem === 'query') {
-      Object.defineProperty(req, 'query', { value, writable: true, configurable: true });
-    } else {
-      req[origem] = value;
-    }
+    if (origem === 'body') req.body = value;
+    else res.locals[origem] = value;
     return next();
   };
 
