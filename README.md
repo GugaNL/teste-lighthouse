@@ -4,6 +4,8 @@ Aplicação fullstack para o vendedor gerenciar o catálogo de produtos: **API R
 
 Solução do desafio técnico [`occ-react-node`](https://gitlab.com/lighthouseit/testes-tecnicos/occ-react-node).
 
+> 🚀 **Demonstração online:** a aplicação está publicada no meu ambiente (VPS com Coolify) em **http://2ssezzdzsr0hmpvviy5z3mp4.31.97.168.183.sslip.io** — a documentação interativa da API fica em [`/docs`](http://2ssezzdzsr0hmpvviy5z3mp4.31.97.168.183.sslip.io/docs).
+
 ![Listagem de produtos](docs/screenshots/listagem.jpg)
 
 | Validação no formulário | Confirmação de exclusão | Erro de conexão |
