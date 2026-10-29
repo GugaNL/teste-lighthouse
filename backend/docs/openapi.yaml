@@ -11,7 +11,8 @@ info:
 
     **Além do pedido** (compatível com o contrato): filtros, ordenação e
     paginação opcionais na listagem, resumo por categoria, controle de
-    concorrência otimista com `ETag`/`If-Match` e health check.
+    concorrência otimista com `ETag`/`If-Match`, exclusão lógica com
+    restauração, operações em lote e health check.
 
     Toda resposta de erro tem o mesmo formato (`Error`), com mensagens em
     português prontas para exibir ao usuário.
@@ -21,6 +22,8 @@ servers:
 tags:
   - name: Produtos
     description: CRUD do catálogo (endpoints obrigatórios do desafio)
+  - name: Lote
+    description: Operações sobre vários produtos de uma vez (até 100)
   - name: Categorias
     description: Resumo do catálogo agrupado por categoria
   - name: Infra
@@ -50,6 +53,20 @@ paths:
           in: query
           description: "`true` só com estoque, `false` só esgotados."
           schema: { type: boolean }
+        - name: stockStatus
+          in: query
+          description: |
+            Faixa de estoque: `out` esgotado (0), `low` estoque baixo (1 a 5),
+            `ok` acima de 5. Prevalece sobre `inStock`.
+          schema: { type: string, enum: [out, low, ok] }
+        - name: minPrice
+          in: query
+          description: Preço mínimo (inclusivo).
+          schema: { type: number, minimum: 0 }
+        - name: maxPrice
+          in: query
+          description: Preço máximo (inclusivo); não pode ser menor que `minPrice`.
+          schema: { type: number, minimum: 0 }
         - name: sort
           in: query
           description: Campo de ordenação; prefixo `-` inverte. Padrão `-createdAt`.
@@ -167,11 +184,109 @@ paths:
     delete:
       tags: [Produtos]
       summary: Remove um produto
+      description: |
+        Exclusão lógica: o produto deixa de aparecer em todas as leituras
+        (inclusive `GET /products/{id}`, que passa a responder `404`), mas
+        pode ser restaurado com `POST /products/{id}/restore`.
       responses:
         '204':
           description: Produto removido (sem corpo)
         '400': { $ref: '#/components/responses/InvalidId' }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  /products/{id}/restore:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+    post:
+      tags: [Produtos]
+      summary: Restaura um produto excluído
+      description: Desfaz a exclusão; o produto volta exatamente como estava (mesma versão e `updatedAt`).
+      responses:
+        '200':
+          description: Produto restaurado
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '400': { $ref: '#/components/responses/InvalidId' }
+        '404':
+          description: O produto não existe ou não está excluído.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /products/batch/delete:
+    post:
+      tags: [Lote]
+      summary: Exclui vários produtos
+      description: Exclusão lógica; ids inexistentes ou já excluídos são ignorados.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BatchIds' }
+      responses:
+        '200':
+          description: Quantidade excluída
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted: { type: integer, example: 3 }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /products/batch/restore:
+    post:
+      tags: [Lote]
+      summary: Restaura vários produtos excluídos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BatchIds' }
+      responses:
+        '200':
+          description: Quantidade restaurada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer, example: 3 }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /products/batch/category:
+    post:
+      tags: [Lote]
+      summary: Muda a categoria de vários produtos
+      description: |
+        Mesma normalização da gravação individual (inclusive o reaproveitamento
+        da grafia existente). Cada produto alterado ganha uma versão nova.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/BatchIds'
+                - type: object
+                  required: [category]
+                  properties:
+                    category: { type: string, minLength: 1, maxLength: 60, example: Cozinha }
+      responses:
+        '200':
+          description: Quantidade alterada e a grafia gravada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  updated: { type: integer, example: 2 }
+                  category: { type: string, example: Cozinha }
+        '400': { $ref: '#/components/responses/ValidationError' }
 
   /categories:
     get:
@@ -270,6 +385,18 @@ components:
         stock: { type: integer, example: 143, description: Unidades em estoque. }
         inventoryValue: { type: number, example: 48210.5, description: Soma de preço × estoque. }
         outOfStock: { type: integer, example: 1 }
+        lowStock: { type: integer, example: 2, description: Produtos com 1 a 5 unidades. }
+
+    BatchIds:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items: { type: string, pattern: '^[0-9a-fA-F]{24}$' }
 
     Error:
       type: object

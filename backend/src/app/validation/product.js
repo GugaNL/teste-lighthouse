@@ -1,5 +1,5 @@
 const Joi = require('joi');
-const { LIMITS, SORT_OPTIONS, hasAtMostTwoDecimals } = require('../rules/product');
+const { LIMITS, SORT_OPTIONS, STOCK_STATUS, hasAtMostTwoDecimals } = require('../rules/product');
 
 /**
  * Esquemas de validação do produto.
@@ -97,6 +97,20 @@ const listQuery = Joi.object({
   }),
   category: Joi.string().trim().max(LIMITS.category.max).allow(''),
   inStock: Joi.boolean().messages({ 'boolean.base': 'inStock deve ser true ou false' }),
+  stockStatus: Joi.string()
+    .valid(...STOCK_STATUS)
+    .messages({ 'any.only': `stockStatus deve ser um de: ${STOCK_STATUS.join(', ')}` }),
+  minPrice: Joi.number().min(0).messages({
+    'number.base': 'minPrice deve ser um número maior ou igual a zero',
+    'number.min': 'minPrice deve ser um número maior ou igual a zero',
+  }),
+  maxPrice: Joi.number()
+    .min(0)
+    .when('minPrice', { is: Joi.exist(), then: Joi.number().min(Joi.ref('minPrice')) })
+    .messages({
+      'number.base': 'maxPrice deve ser um número maior ou igual a zero',
+      'number.min': 'maxPrice deve ser maior ou igual a minPrice',
+    }),
   sort: Joi.string()
     .valid(...SORT_OPTIONS)
     .messages({ 'any.only': `sort deve ser um de: ${SORT_OPTIONS.join(', ')}` }),
@@ -113,4 +127,31 @@ const listQuery = Joi.object({
   }),
 });
 
-module.exports = { save, listQuery };
+const MENSAGEM_ID = 'ID inválido — deve ter 24 caracteres hexadecimais.';
+
+const ids = Joi.array()
+  .items(Joi.string().pattern(/^[0-9a-fA-F]{24}$/).messages({
+    'string.base': MENSAGEM_ID,
+    'string.pattern.base': MENSAGEM_ID,
+  }))
+  .min(1)
+  .max(LIMITS.batch.max)
+  .unique()
+  .required()
+  .messages({
+    'any.required': 'Informe os ids dos produtos',
+    'array.base': 'ids deve ser uma lista',
+    'array.min': 'Selecione pelo menos um produto',
+    'array.max': `Selecione no máximo ${LIMITS.batch.max} produtos por vez`,
+    'array.unique': 'A lista de ids tem repetições',
+  });
+
+const corpoObjeto = {
+  'object.base': 'O corpo da requisição deve ser um objeto JSON',
+  'any.required': 'O corpo da requisição é obrigatório',
+};
+
+const batchIds = Joi.object({ ids }).required().messages(corpoObjeto);
+const batchCategory = Joi.object({ ids, category }).required().messages(corpoObjeto);
+
+module.exports = { save, listQuery, batchIds, batchCategory };

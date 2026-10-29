@@ -1,21 +1,25 @@
-import { useEffect } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import ProductFilters from '../components/ProductFilters';
-import ProductTable from '../components/ProductTable';
-import Pagination from '../components/Pagination';
-import SummaryCards from '../components/SummaryCards';
+import BulkActionsBar from '../components/BulkActionsBar';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { EmptyState, ErrorState } from '../components/Feedback';
+import Pagination from '../components/Pagination';
+import ProductFilters from '../components/ProductFilters';
+import ProductTable from '../components/ProductTable';
+import SummaryCards from '../components/SummaryCards';
+import { useBulkActions } from '../hooks/useBulkActions';
 import { useCsvExport } from '../hooks/useCsvExport';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
 import { useProductDeletion } from '../hooks/useProductDeletion';
-import { useProductFilters } from '../hooks/useProductFilters';
+import { PAGE_SIZE_OPTIONS, useProductFilters } from '../hooks/useProductFilters';
+import { useProductSelection } from '../hooks/useProductSelection';
 import { useCategoriesQuery, useProductsQuery } from '../queries/productQueries';
 import { readRouteState } from '../types/navigation';
 import type { ProductRouteState } from '../types/navigation';
 import { formatCurrency, plural } from '../utils/format';
+import { LIMITS } from '../utils/productRules';
 
-const PAGE_SIZE = 10;
 const DURACAO_DO_DESTAQUE_MS = 4000;
 
 export default function ProductList() {
@@ -23,17 +27,19 @@ export default function ProductList() {
   const location = useLocation();
   const navigate = useNavigate();
   const filtros = useProductFilters();
-  const { page } = filtros;
+  const { page, pageSize, setPage } = filtros;
+  const buscaRef = useRef<HTMLInputElement>(null);
+  const categoriaEmLoteRef = useRef<HTMLInputElement>(null);
+  const categoriasEmLoteId = useId();
 
-  const produtos = useProductsQuery({ ...filtros.apiFilters, page, limit: PAGE_SIZE });
+  const produtos = useProductsQuery({ ...filtros.apiFilters, page, limit: pageSize });
   const categorias = useCategoriesQuery();
   const itens = produtos.data?.items;
   const total = produtos.data?.total ?? 0;
 
-  const { setPage } = filtros;
   useEffect(() => {
-    if (itens && itens.length === 0 && total > 0 && page > 1) setPage(Math.ceil(total / PAGE_SIZE));
-  }, [itens, total, page, setPage]);
+    if (itens && itens.length === 0 && total > 0 && page > 1) setPage(Math.ceil(total / pageSize));
+  }, [itens, total, page, pageSize, setPage]);
 
   const destaque = readRouteState(location.state).highlightId;
   useEffect(() => {
@@ -44,7 +50,12 @@ export default function ProductList() {
     return () => clearTimeout(timer);
   }, [destaque, location.pathname, location.search, navigate]);
 
-  const exclusao = useProductDeletion(() => {
+  useKeyboardShortcut('/', () => buscaRef.current?.focus());
+
+  const selecao = useProductSelection();
+  const lote = useBulkActions(selecao);
+  const exclusao = useProductDeletion((produto) => {
+    selecao.remove([produto.id]);
     if (itens?.length === 1 && page > 1) setPage(page - 1);
   });
   const exportacao = useCsvExport(filtros.apiFilters);
@@ -93,8 +104,18 @@ export default function ProductList() {
           highlightId={destaque}
           onDelete={exclusao.request}
           linkState={voltarPara}
+          isSelected={selecao.isSelected}
+          onToggleSelected={selecao.toggle}
+          onToggleAll={selecao.toggleAll}
         />
-        <Pagination page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} />
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onChange={setPage}
+          pageSizeOptions={PAGE_SIZE_OPTIONS}
+          onPageSizeChange={filtros.setPageSize}
+        />
       </>
     );
   }
@@ -127,8 +148,8 @@ export default function ProductList() {
         categories={categorias.data}
         loading={categorias.isPending}
         error={categorias.error}
-        outOfStockActive={filtros.onlyOutOfStock}
-        onShowOutOfStock={() => filtros.setOnlyOutOfStock(!filtros.onlyOutOfStock)}
+        stockStatus={filtros.stockStatus}
+        onToggleStockStatus={(faixa) => filtros.setStockStatus(filtros.stockStatus === faixa ? null : faixa)}
       />
 
       <section className="painel" aria-labelledby="titulo-lista">
@@ -138,15 +159,29 @@ export default function ProductList() {
         <ProductFilters
           search={filtros.searchText}
           onSearchChange={filtros.setSearchText}
+          searchInputRef={buscaRef}
           category={filtros.category}
           onCategoryChange={filtros.setCategory}
           categories={categorias.data}
           sort={filtros.sort}
           onSortChange={filtros.setSort}
-          onlyOutOfStock={filtros.onlyOutOfStock}
-          onOnlyOutOfStockChange={filtros.setOnlyOutOfStock}
+          stockStatus={filtros.stockStatus}
+          onStockStatusChange={filtros.setStockStatus}
+          minPrice={filtros.minPriceInput}
+          onMinPriceChange={filtros.setMinPriceInput}
+          maxPrice={filtros.maxPriceInput}
+          onMaxPriceChange={filtros.setMaxPriceInput}
+          priceRangeError={filtros.priceRangeError}
           hasFilters={filtros.hasFilters}
           onClear={filtros.clearFilters}
+        />
+        <BulkActionsBar
+          count={selecao.count}
+          busy={lote.isBusy}
+          onExport={lote.exportSelected}
+          onChangeCategory={lote.openCategory}
+          onDelete={lote.openDelete}
+          onClear={selecao.clear}
         />
         <p className="sr-only" aria-live="polite">
           {produtos.isError
@@ -171,9 +206,70 @@ export default function ProductList() {
         {alvo ? (
           <p>
             <strong>{alvo.name}</strong> ({alvo.category} · {formatCurrency(alvo.price)}) será removido do
-            catálogo. Esta ação não pode ser desfeita.
+            catálogo. Você poderá desfazer logo em seguida.
           </p>
         ) : null}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={lote.dialog === 'delete'}
+        title={`Excluir ${plural(selecao.count, 'produto')}?`}
+        confirmLabel="Excluir"
+        busyLabel="Excluindo…"
+        busy={lote.isBusy}
+        error={lote.error}
+        onConfirm={lote.confirmDelete}
+        onCancel={lote.closeDialog}
+      >
+        <p>
+          {plural(
+            selecao.count,
+            'produto selecionado será removido',
+            'produtos selecionados serão removidos'
+          )}{' '}
+          do catálogo. Você poderá desfazer logo em seguida.
+        </p>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={lote.dialog === 'category'}
+        title="Mudar categoria"
+        confirmLabel="Aplicar"
+        busyLabel="Aplicando…"
+        variant="primario"
+        busy={lote.isBusy}
+        error={lote.error}
+        initialFocusRef={categoriaEmLoteRef}
+        onConfirm={lote.confirmCategory}
+        onCancel={lote.closeDialog}
+      >
+        <div className="campo">
+          <label htmlFor={`${categoriasEmLoteId}-campo`} className="campo__rotulo">
+            Nova categoria para {plural(selecao.count, 'produto selecionado', 'produtos selecionados')}
+          </label>
+          <input
+            id={`${categoriasEmLoteId}-campo`}
+            ref={categoriaEmLoteRef}
+            type="text"
+            list={`${categoriasEmLoteId}-lista`}
+            value={lote.category}
+            maxLength={LIMITS.category.max * 2}
+            onChange={(e) => lote.setCategory(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void lote.confirmCategory();
+              }
+            }}
+            disabled={lote.isBusy}
+            autoComplete="off"
+          />
+          <datalist id={`${categoriasEmLoteId}-lista`}>
+            {categorias.data?.map((c) => (
+              <option key={c.name} value={c.name} />
+            ))}
+          </datalist>
+        </div>
       </ConfirmDialog>
     </>
   );

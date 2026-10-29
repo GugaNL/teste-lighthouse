@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { Link, NavLink, Outlet, ScrollRestoration, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router-dom';
+import ThemeToggle from './ThemeToggle';
+import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
 import { readRouteState } from '../types/navigation';
 import type { ProductRouteState } from '../types/navigation';
 
@@ -24,6 +26,7 @@ function useFocusOnNavigation() {
 
 export default function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const mainRef = useFocusOnNavigation();
   const novoProduto: ProductRouteState = {
     returnTo:
@@ -31,6 +34,12 @@ export default function Layout() {
         ? `${location.pathname}${location.search}`
         : (readRouteState(location.state).returnTo ?? '/'),
   };
+
+  useKeyboardShortcut(
+    'n',
+    () => void navigate('/produtos/novo', { state: novoProduto }),
+    location.pathname !== '/produtos/novo'
+  );
 
   return (
     <div className="app">
@@ -53,7 +62,13 @@ export default function Layout() {
             <a href={`${API_URL}/docs`} className="topo__link" target="_blank" rel="noreferrer">
               API
             </a>
-            <Link to="/produtos/novo" state={novoProduto} className="botao botao--primario botao--pequeno">
+            <ThemeToggle />
+            <Link
+              to="/produtos/novo"
+              state={novoProduto}
+              className="botao botao--primario botao--pequeno"
+              aria-keyshortcuts="n"
+            >
               + Novo produto
             </Link>
           </nav>
@@ -69,6 +84,9 @@ export default function Layout() {
         <a href={`${API_URL}/docs`} target="_blank" rel="noreferrer">
           Documentação da API
         </a>
+        <span className="rodape__atalhos">
+          Atalhos: <kbd>/</kbd> buscar · <kbd>N</kbd> novo produto
+        </span>
       </footer>
 
       <ScrollRestoration />

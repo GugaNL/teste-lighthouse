@@ -13,7 +13,7 @@ export interface MoneyInputProps extends Omit<
 }
 
 const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function MoneyInput(
-  { value, onChange, ...props },
+  { value, onChange, placeholder = 'R$ 0,00', ...props },
   ref
 ) {
   const texto = value === null ? '' : formatCurrency(value);
@@ -30,7 +30,7 @@ const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function MoneyI
       type="text"
       inputMode="numeric"
       autoComplete="off"
-      placeholder="R$ 0,00"
+      placeholder={placeholder}
       value={texto}
       onChange={aoMudar}
     />

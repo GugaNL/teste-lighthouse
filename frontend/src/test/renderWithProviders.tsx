@@ -12,6 +12,7 @@ export interface RenderOptions {
   path?: string;
   initialEntries?: string[];
   initialIndex?: number;
+  children?: RouteObject[];
 }
 
 export function createTestQueryClient(): QueryClient {
@@ -21,9 +22,12 @@ export function createTestQueryClient(): QueryClient {
 }
 
 export function renderWithProviders(ui: ReactElement, options: RenderOptions = {}) {
-  const { routes = [], path = '/', initialEntries = [path], initialIndex } = options;
+  const { routes = [], path = '/', initialEntries = [path], initialIndex, children } = options;
   const queryClient = createTestQueryClient();
-  const router = createMemoryRouter([...routes, { path, element: ui }], { initialEntries, initialIndex });
+  const router = createMemoryRouter([...routes, { path, element: ui, children }], {
+    initialEntries,
+    initialIndex,
+  });
 
   render(
     <QueryClientProvider client={queryClient}>

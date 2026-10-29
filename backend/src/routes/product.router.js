@@ -11,5 +11,12 @@ module.exports = (server, routes, prefix = '/products') => {
   routes.put('/:id', idValidation, validate(productValidation.save), ProductController.update);
   routes.delete('/:id', idValidation, ProductController.remove);
 
+  // Operações em lote (seleção múltipla do frontend). Antes de /:id/restore,
+  // senão "/batch/restore" casaria com ela (id = "batch").
+  routes.post('/batch/delete', validate(productValidation.batchIds), ProductController.removeMany);
+  routes.post('/batch/restore', validate(productValidation.batchIds), ProductController.restoreMany);
+  routes.post('/batch/category', validate(productValidation.batchCategory), ProductController.changeCategory);
+  routes.post('/:id/restore', idValidation, ProductController.restore);
+
   server.use(prefix, routes);
 };

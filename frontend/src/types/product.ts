@@ -18,10 +18,14 @@ export type ProductField = keyof ProductInput;
 export type ProductSortField = 'createdAt' | 'updatedAt' | 'name' | 'price' | 'stock';
 export type ProductSort = ProductSortField | `-${ProductSortField}`;
 
+export type StockStatusFilter = 'out' | 'low' | 'ok';
+
 export interface ProductFilters {
   search?: string;
   category?: string;
-  inStock?: boolean;
+  stockStatus?: StockStatusFilter;
+  minPrice?: number;
+  maxPrice?: number;
   sort?: ProductSort;
 }
 
@@ -41,4 +45,18 @@ export interface CategorySummary {
   stock: number;
   inventoryValue: number;
   outOfStock: number;
+  lowStock: number;
+}
+
+export interface BatchDeleteResult {
+  deleted: number;
+}
+
+export interface BatchRestoreResult {
+  restored: number;
+}
+
+export interface BatchCategoryResult {
+  updated: number;
+  category: string;
 }

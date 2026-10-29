@@ -49,8 +49,34 @@ class ProductService {
   }
 
   async remove(id) {
-    const removido = await ProductRepository.remove(id);
+    const removido = await ProductRepository.softDelete(id);
     if (!removido) throw new NotFound(RECURSO);
+  }
+
+  async restore(id) {
+    const restaurado = await ProductRepository.restore(id);
+    if (!restaurado) throw new NotFound(RECURSO);
+    return restaurado;
+  }
+
+  async removeMany(ids) {
+    return { deleted: await ProductRepository.softDeleteMany(ids) };
+  }
+
+  async restoreMany(ids) {
+    return { restored: await ProductRepository.restoreMany(ids) };
+  }
+
+  /**
+   * Muda a categoria de vários produtos de uma vez, com a mesma normalização
+   * da gravação individual. Os próprios produtos selecionados ficam fora da
+   * busca de grafia, para o lote conseguir corrigir a capitalização.
+   */
+  async changeCategory(ids, categoria) {
+    const normalizada = normalizeText(categoria);
+    const grafiaExistente = await ProductRepository.findCategorySpelling(normalizada, ids);
+    const category = grafiaExistente || normalizada;
+    return { updated: await ProductRepository.updateCategoryMany(ids, category), category };
   }
 
   async categories() {
@@ -62,6 +88,7 @@ class ProductService {
       // A soma de preço × estoque no Mongo acumula ponto flutuante.
       inventoryValue: roundMoney(g.inventoryValue),
       outOfStock: g.outOfStock,
+      lowStock: g.lowStock,
     }));
   }
 

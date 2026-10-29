@@ -1,11 +1,15 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { QueryClient } from '@tanstack/react-query';
 import {
+  changeProductsCategory,
   createProduct,
   deleteProduct,
+  deleteProducts,
   getProduct,
   listCategories,
   listProducts,
+  restoreProduct,
+  restoreProducts,
   updateProduct,
 } from '../services/productService';
 import type { ProductInput, ProductListParams } from '../types/product';
@@ -85,6 +89,52 @@ export function useDeleteProduct() {
     mutationFn: (id: string) => deleteProduct(id),
     onSettled: (_resultado, _erro, id) => {
       queryClient.removeQueries({ queryKey: productKeys.detail(id) });
+      invalidarCatalogo(queryClient);
+    },
+  });
+}
+
+export function useRestoreProduct() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => restoreProduct(id),
+    onSuccess: (restaurado) => {
+      queryClient.setQueryData(productKeys.detail(restaurado.id), restaurado);
+      invalidarCatalogo(queryClient);
+    },
+  });
+}
+
+export function useDeleteProducts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => deleteProducts(ids),
+    onSettled: (_resultado, _erro, ids) => {
+      ids.forEach((id) => queryClient.removeQueries({ queryKey: productKeys.detail(id) }));
+      invalidarCatalogo(queryClient);
+    },
+  });
+}
+
+export function useRestoreProducts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => restoreProducts(ids),
+    onSettled: () => invalidarCatalogo(queryClient),
+  });
+}
+
+export interface ChangeCategoryVariables {
+  ids: string[];
+  category: string;
+}
+
+export function useChangeProductsCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ids, category }: ChangeCategoryVariables) => changeProductsCategory(ids, category),
+    onSettled: (_resultado, _erro, { ids }) => {
+      ids.forEach((id) => void queryClient.invalidateQueries({ queryKey: productKeys.detail(id) }));
       invalidarCatalogo(queryClient);
     },
   });

@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { formatNumber } from '../utils/format';
 
 type ItemDaPaginacao = number | '…';
@@ -16,9 +17,19 @@ export interface PaginationProps {
   pageSize: number;
   total: number;
   onChange: (pagina: number) => void;
+  pageSizeOptions?: readonly number[];
+  onPageSizeChange?: (tamanho: number) => void;
 }
 
-export default function Pagination({ page, pageSize, total, onChange }: PaginationProps) {
+export default function Pagination({
+  page,
+  pageSize,
+  total,
+  onChange,
+  pageSizeOptions,
+  onPageSizeChange,
+}: PaginationProps) {
+  const tamanhoId = useId();
   const totalPaginas = Math.max(1, Math.ceil(total / pageSize));
   if (total === 0) return null;
 
@@ -27,9 +38,27 @@ export default function Pagination({ page, pageSize, total, onChange }: Paginati
 
   return (
     <nav className="paginacao" aria-label="Paginação">
-      <span className="paginacao__resumo">
-        {formatNumber(inicio)}–{formatNumber(fim)} de {formatNumber(total)}
-      </span>
+      <div className="paginacao__info">
+        <span className="paginacao__resumo">
+          {formatNumber(inicio)}–{formatNumber(fim)} de {formatNumber(total)}
+        </span>
+        {pageSizeOptions && onPageSizeChange ? (
+          <span className="paginacao__tamanho">
+            <label htmlFor={tamanhoId}>Por página</label>
+            <select
+              id={tamanhoId}
+              value={pageSize}
+              onChange={(e) => onPageSizeChange(Number(e.target.value))}
+            >
+              {pageSizeOptions.map((opcao) => (
+                <option key={opcao} value={opcao}>
+                  {opcao}
+                </option>
+              ))}
+            </select>
+          </span>
+        ) : null}
+      </div>
       {totalPaginas > 1 ? (
         <div className="paginacao__botoes">
           <button

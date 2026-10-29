@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef } from 'react';
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
+
+const FOCAVEIS = ['button', 'input', 'select', 'textarea'].map((tag) => `${tag}:not([disabled])`).join(', ');
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -11,6 +13,7 @@ export interface ConfirmDialogProps {
   variant?: 'perigo' | 'primario';
   busy?: boolean;
   error?: string;
+  initialFocusRef?: RefObject<HTMLElement | null>;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -25,6 +28,7 @@ export default function ConfirmDialog({
   variant = 'perigo',
   busy = false,
   error = '',
+  initialFocusRef,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -38,12 +42,12 @@ export default function ConfirmDialog({
     if (!open || !dialogo) return undefined;
     const focoAnterior = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (!dialogo.open) dialogo.showModal();
-    cancelarRef.current?.focus();
+    (initialFocusRef?.current ?? cancelarRef.current)?.focus();
     return () => {
       if (dialogo.open) dialogo.close();
       focoAnterior?.focus();
     };
-  }, [open]);
+  }, [open, initialFocusRef]);
 
   useEffect(() => {
     const dialogo = dialogoRef.current;
@@ -66,7 +70,7 @@ export default function ConfirmDialog({
         return;
       }
       if (evento.key !== 'Tab') return;
-      const focaveis = dialogo.querySelectorAll<HTMLButtonElement>('button:not([disabled])');
+      const focaveis = dialogo.querySelectorAll<HTMLElement>(FOCAVEIS);
       const primeiro = focaveis[0];
       const ultimo = focaveis[focaveis.length - 1];
       if (!primeiro || !ultimo) return;

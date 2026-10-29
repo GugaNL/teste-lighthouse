@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useToast } from '../context/toast';
-import { useDeleteProduct } from '../queries/productQueries';
+import { useDeleteProduct, useRestoreProduct } from '../queries/productQueries';
 import { toApiError } from '../services/api';
 import type { Product } from '../types/product';
 
@@ -13,9 +13,10 @@ export interface ProductDeletion {
   confirm: () => Promise<void>;
 }
 
-export function useProductDeletion(onDeleted: () => void): ProductDeletion {
+export function useProductDeletion(onDeleted: (produto: Product) => void): ProductDeletion {
   const toast = useToast();
   const exclusao = useDeleteProduct();
+  const restauracao = useRestoreProduct();
   const [target, setTarget] = useState<Product | null>(null);
   const [error, setError] = useState('');
 
@@ -24,20 +25,30 @@ export function useProductDeletion(onDeleted: () => void): ProductDeletion {
     setError('');
   };
 
+  const desfazer = (produto: Product) => {
+    restauracao.mutate(produto.id, {
+      onSuccess: () => toast.success(`“${produto.name}” foi restaurado.`),
+      onError: (erro) => toast.error(`Não foi possível desfazer: ${erro.message}`),
+    });
+  };
+
   const confirm = async () => {
     if (!target) return;
+    const produto = target;
     setError('');
     try {
-      await exclusao.mutateAsync(target.id);
-      toast.success(`“${target.name}” foi excluído.`);
+      await exclusao.mutateAsync(produto.id);
+      toast.success(`“${produto.name}” foi excluído.`, {
+        action: { label: 'Desfazer', onClick: () => desfazer(produto) },
+      });
       cancel();
-      onDeleted();
+      onDeleted(produto);
     } catch (falha) {
       const erro = toApiError(falha);
       if (erro.status === 404) {
-        toast.info(`“${target.name}” já tinha sido excluído.`);
+        toast.info(`“${produto.name}” já tinha sido excluído.`);
         cancel();
-        onDeleted();
+        onDeleted(produto);
       } else {
         setError(erro.message);
       }

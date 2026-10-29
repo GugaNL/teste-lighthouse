@@ -9,6 +9,12 @@
     <meta name="theme-color" content="#0a1f2e" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Codex Catálogo</title>
+    <script>
+      try {
+        var tema = localStorage.getItem('codex-catalogo:tema');
+        if (tema === 'light' || tema === 'dark') document.documentElement.dataset.theme = tema;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

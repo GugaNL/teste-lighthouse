@@ -47,6 +47,10 @@ const ProductSchema = new mongoose.Schema(
     // array muda, e aqui precisamos de um número que mude a CADA atualização
     // para o If-Match (concorrência otimista) funcionar.
     version: { type: Number, default: 1, min: 1 },
+
+    // Exclusão lógica: o produto excluído some de todas as leituras, mas pode
+    // ser restaurado (o "Desfazer" do frontend).
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true, versionKey: false }
 );
@@ -57,6 +61,7 @@ const COLLATION = { locale: 'pt', strength: 2 };
 
 ProductSchema.index({ category: 1 }, { collation: COLLATION });
 ProductSchema.index({ createdAt: -1, _id: -1 });
+ProductSchema.index({ deletedAt: 1 });
 
 module.exports = mongoose.model('Product', ProductSchema);
 module.exports.COLLATION = COLLATION;

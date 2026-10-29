@@ -16,11 +16,23 @@ const LIMITS = Object.freeze({
   stock: { max: 999_999_999 },
   search: { max: 100 },
   pageSize: { default: 20, max: 100 },
+  batch: { max: 100 },
 });
 
 // Abaixo disto o frontend sinaliza "estoque baixo". Não é regra da API, mas fica
 // aqui para o número existir num lugar só e ir para o resumo de categorias.
 const LOW_STOCK_THRESHOLD = 5;
+
+// Mesmas faixas do selo da listagem: esgotado (0), baixo (1 a 5) e ok (acima).
+const STOCK_STATUS = ['out', 'low', 'ok'];
+
+/** Condição de `stock` no Mongo para cada faixa de estoque. */
+const stockCondition = (status) => {
+  if (status === 'out') return 0;
+  if (status === 'low') return { $gt: 0, $lte: LOW_STOCK_THRESHOLD };
+  if (status === 'ok') return { $gt: LOW_STOCK_THRESHOLD };
+  return undefined;
+};
 
 const SORT_FIELDS = ['name', 'price', 'stock', 'createdAt', 'updatedAt'];
 const SORT_OPTIONS = SORT_FIELDS.flatMap((campo) => [campo, `-${campo}`]);
@@ -72,6 +84,8 @@ const roundMoney = (valor) => Math.round(valor * 100) / 100;
 module.exports = {
   LIMITS,
   LOW_STOCK_THRESHOLD,
+  STOCK_STATUS,
+  stockCondition,
   SORT_OPTIONS,
   DEFAULT_SORT,
   normalizeText,

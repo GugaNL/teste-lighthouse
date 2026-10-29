@@ -1,6 +1,6 @@
 import { formatCurrency, formatNumber } from '../utils/format';
 import type { ApiError } from '../services/api';
-import type { CategorySummary } from '../types/product';
+import type { CategorySummary, StockStatusFilter } from '../types/product';
 
 type CampoSomavel = Exclude<keyof CategorySummary, 'name'>;
 
@@ -10,20 +10,45 @@ interface Cartao {
   extra?: string;
 }
 
+interface CartaoDeFiltro {
+  faixa: Extract<StockStatusFilter, 'low' | 'out'>;
+  rotulo: string;
+  campo: CampoSomavel;
+  ativo: string;
+  alerta: 'atencao' | 'alerta';
+}
+
+const CARTOES_DE_FILTRO: readonly CartaoDeFiltro[] = [
+  {
+    faixa: 'low',
+    rotulo: 'Estoque baixo',
+    campo: 'lowStock',
+    ativo: 'Mostrando só estoque baixo',
+    alerta: 'atencao',
+  },
+  {
+    faixa: 'out',
+    rotulo: 'Esgotados',
+    campo: 'outOfStock',
+    ativo: 'Mostrando só esgotados',
+    alerta: 'alerta',
+  },
+];
+
 export interface SummaryCardsProps {
   categories: CategorySummary[] | undefined;
   loading: boolean;
   error: ApiError | null;
-  outOfStockActive: boolean;
-  onShowOutOfStock: () => void;
+  stockStatus: StockStatusFilter | null;
+  onToggleStockStatus: (faixa: StockStatusFilter) => void;
 }
 
 export default function SummaryCards({
   categories,
   loading,
   error,
-  onShowOutOfStock,
-  outOfStockActive,
+  stockStatus,
+  onToggleStockStatus,
 }: SummaryCardsProps) {
   if (error) {
     return (
@@ -35,7 +60,6 @@ export default function SummaryCards({
 
   const lista = categories ?? [];
   const soma = (campo: CampoSomavel) => lista.reduce((total, c) => total + c[campo], 0);
-  const esgotados = soma('outOfStock');
   const vazio = loading && !categories;
 
   const cartoes: Cartao[] = [
@@ -55,21 +79,34 @@ export default function SummaryCards({
           {c.extra && !vazio ? <span className="indicador__extra">{c.extra}</span> : null}
         </div>
       ))}
-      <button
-        type="button"
-        className={`indicador indicador--acao ${esgotados > 0 ? 'indicador--alerta' : ''} ${outOfStockActive ? 'is-ativo' : ''}`}
-        onClick={onShowOutOfStock}
-        aria-pressed={outOfStockActive}
-        disabled={vazio}
-      >
-        <span className="indicador__rotulo">Esgotados</span>
-        <strong className="indicador__valor">
-          {vazio ? <span className="esqueleto esqueleto--valor" /> : formatNumber(esgotados)}
-        </strong>
-        <span className="indicador__extra">
-          {outOfStockActive ? 'Mostrando só esgotados' : 'Clique para filtrar'}
-        </span>
-      </button>
+      {CARTOES_DE_FILTRO.map((c) => {
+        const quantidade = soma(c.campo);
+        const ativo = stockStatus === c.faixa;
+        const classes = [
+          'indicador',
+          'indicador--acao',
+          quantidade > 0 ? `indicador--${c.alerta}` : '',
+          ativo ? `is-ativo is-ativo--${c.alerta}` : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
+        return (
+          <button
+            key={c.faixa}
+            type="button"
+            className={classes}
+            onClick={() => onToggleStockStatus(c.faixa)}
+            aria-pressed={ativo}
+            disabled={vazio}
+          >
+            <span className="indicador__rotulo">{c.rotulo}</span>
+            <strong className="indicador__valor">
+              {vazio ? <span className="esqueleto esqueleto--valor" /> : formatNumber(quantidade)}
+            </strong>
+            <span className="indicador__extra">{ativo ? c.ativo : 'Clique para filtrar'}</span>
+          </button>
+        );
+      })}
     </section>
   );
 }

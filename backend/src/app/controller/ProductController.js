@@ -61,6 +61,40 @@ class ProductController {
       return responderErro(res, erro);
     }
   }
+
+  async restore(req, res) {
+    try {
+      const produto = await ProductService.restore(req.params.id);
+      res.set('ETag', etagOf(produto.version));
+      return res.status(200).json(serialize(produto));
+    } catch (erro) {
+      return responderErro(res, erro);
+    }
+  }
+
+  async removeMany(req, res) {
+    try {
+      return res.status(200).json(await ProductService.removeMany(req.body.ids));
+    } catch (erro) {
+      return responderErro(res, erro);
+    }
+  }
+
+  async restoreMany(req, res) {
+    try {
+      return res.status(200).json(await ProductService.restoreMany(req.body.ids));
+    } catch (erro) {
+      return responderErro(res, erro);
+    }
+  }
+
+  async changeCategory(req, res) {
+    try {
+      return res.status(200).json(await ProductService.changeCategory(req.body.ids, req.body.category));
+    } catch (erro) {
+      return responderErro(res, erro);
+    }
+  }
 }
 
 function responderErro(res, erro) {

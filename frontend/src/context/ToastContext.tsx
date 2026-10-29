@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ToastContext } from './toast';
-import type { ToastApi, ToastKind } from './toast';
+import type { ToastAction, ToastApi, ToastKind, ToastOptions } from './toast';
 
 interface Toast {
   id: number;
   kind: ToastKind;
   message: string;
+  action?: ToastAction;
 }
 
 const DURACAO_MS = 4500;
+const DURACAO_COM_ACAO_MS = 8000;
 const CLASSE_POR_TIPO: Record<ToastKind, string> = { success: 'sucesso', error: 'erro', info: 'info' };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -32,13 +34,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const mostrar = useCallback(
-    (kind: ToastKind, message: string) => {
+    (kind: ToastKind, message: string, { action }: ToastOptions = {}) => {
       proximoId.current += 1;
       const id = proximoId.current;
-      setToasts((lista) => [...lista.slice(-3), { id, kind, message }]);
+      setToasts((lista) => [...lista.slice(-3), { id, kind, message, action }]);
       timers.current.set(
         id,
-        setTimeout(() => fechar(id), DURACAO_MS)
+        setTimeout(() => fechar(id), action ? DURACAO_COM_ACAO_MS : DURACAO_MS)
       );
     },
     [fechar]
@@ -46,9 +48,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const api = useMemo<ToastApi>(
     () => ({
-      success: (mensagem) => mostrar('success', mensagem),
-      error: (mensagem) => mostrar('error', mensagem),
-      info: (mensagem) => mostrar('info', mensagem),
+      success: (mensagem, opcoes) => mostrar('success', mensagem, opcoes),
+      error: (mensagem, opcoes) => mostrar('error', mensagem, opcoes),
+      info: (mensagem, opcoes) => mostrar('info', mensagem, opcoes),
     }),
     [mostrar]
   );
@@ -64,6 +66,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             role={t.kind === 'error' ? 'alert' : 'status'}
           >
             <span>{t.message}</span>
+            {t.action ? (
+              <button
+                type="button"
+                className="toast__acao"
+                onClick={() => {
+                  fechar(t.id);
+                  t.action?.onClick();
+                }}
+              >
+                {t.action.label}
+              </button>
+            ) : null}
             <button
               type="button"
               className="toast__fechar"

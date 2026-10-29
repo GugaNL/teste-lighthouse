@@ -157,7 +157,11 @@ npm --prefix frontend run dev
 | `GET` | `/products/:id` | Retorna um produto por ID | `200` | `400`, `404` |
 | `POST` | `/products` | Cria um produto | `201` | `400` |
 | `PUT` | `/products/:id` | Atualiza um produto (substituição completa) | `200` | `400`, `404`, `412` |
-| `DELETE` | `/products/:id` | Remove um produto | `204` | `400`, `404` |
+| `DELETE` | `/products/:id` | Remove um produto (exclusão lógica) | `204` | `400`, `404` |
+| `POST` | `/products/:id/restore` | Desfaz a exclusão *(extra)* | `200` | `400`, `404` |
+| `POST` | `/products/batch/delete` | Exclui vários produtos `{ ids }` *(extra)* | `200` | `400` |
+| `POST` | `/products/batch/restore` | Restaura vários produtos `{ ids }` *(extra)* | `200` | `400` |
+| `POST` | `/products/batch/category` | Muda a categoria de vários `{ ids, category }` *(extra)* | `200` | `400` |
 | `GET` | `/categories` | Resumo por categoria *(extra)* | `200` | — |
 | `GET` | `/health` | Health check *(extra)* | `200` | — |
 
@@ -200,6 +204,8 @@ Sem parâmetros, a rota devolve **todos** os produtos (mais recentes primeiro), 
 | `search` | `?search=fone` | Busca em nome, descrição e categoria (sem diferenciar maiúsculas) |
 | `category` | `?category=eletrônicos` | Categoria exata, sem diferenciar maiúsculas |
 | `inStock` | `?inStock=false` | `true` só com estoque, `false` só esgotados |
+| `stockStatus` | `?stockStatus=low` | Faixa de estoque: `out` (0), `low` (1 a 5) ou `ok` (acima de 5); prevalece sobre `inStock` |
+| `minPrice`, `maxPrice` | `?minPrice=100&maxPrice=500` | Faixa de preço, limites inclusivos (`maxPrice` ≥ `minPrice`) |
 | `sort` | `?sort=-price` | `name`, `price`, `stock`, `createdAt`, `updatedAt`; prefixo `-` inverte |
 | `page`, `limit` | `?page=2&limit=10` | Paginação (limit de 1 a 100) |
 
@@ -208,6 +214,12 @@ A resposta é **sempre uma lista**; o total que atende aos filtros vem no cabeç
 ### Concorrência otimista (`ETag` / `If-Match`) — opcional
 
 `GET /products/:id`, `POST` e `PUT` devolvem `ETag: "<versão>"`. Enviando esse valor em `If-Match` no `PUT`, a API só grava se ninguém tiver alterado o produto nesse meio-tempo; caso contrário responde **`412 Precondition Failed`** com a `currentVersion`. Sem o cabeçalho, a última gravação vence (comportamento REST padrão). O frontend usa isso para avisar o vendedor em vez de sobrescrever a alteração de outra pessoa.
+
+### Exclusão lógica e operações em lote
+
+`DELETE /products/:id` continua respondendo `204` e o produto some de **todas** as leituras (listagem, `GET /products/:id`, resumo por categoria, edição), mas fica no banco com `deletedAt` preenchido. `POST /products/:id/restore` desfaz a exclusão e devolve o produto como estava — é o "Desfazer" do frontend.
+
+As rotas `/products/batch/*` recebem até **100 ids** únicos. Ids inexistentes ou já excluídos são ignorados, e a resposta diz quantos foram afetados (`{ "deleted": 3 }`, `{ "restored": 3 }`, `{ "updated": 2, "category": "Cozinha" }`). A mudança de categoria em lote aplica a mesma normalização da gravação individual e incrementa a versão de cada produto, então quem estava editando um deles recebe `412` ao salvar.
 
 ### Formato de erro
 
@@ -256,6 +268,11 @@ curl -i -X PUT http://localhost:4008/products/<id> -H "Content-Type: application
 
 ```bash
 curl -i -X DELETE http://localhost:4008/products/<id>
+curl -i -X POST http://localhost:4008/products/<id>/restore
+```
+
+```bash
+curl -i -X POST http://localhost:4008/products/batch/category -H "Content-Type: application/json" -d '{"ids":["<id1>","<id2>"],"category":"Cozinha"}'
 ```
 
 ---
@@ -398,8 +415,8 @@ npm run test:api    # coleção Postman contra a API no ar (npm run dev antes)
 
 | Suíte | Ferramentas | Quantidade | Cobre |
 | :--- | :--- | :---: | :--- |
-| Backend | Jest + Supertest + mongodb-memory-server | **89** | Cada endpoint e status; cada regra de negócio nos limites (2/3/120/121 caracteres, `0`, `0.01`, `-1`, `1.5`, texto, `null`, só espaços); busca, filtros, ordenação com acento, paginação; `If-Match`/`412`; JSON malformado; rota desconhecida; resumo por categoria; funções puras |
-| Frontend | Vitest + Testing Library | **58** | Esquema zod (mesmos casos da API); `ApiError` para cada tipo de falha; `ProductForm` criando e editando, erro da API no campo certo, estado de envio, descarte com confirmação no Cancelar, no voltar do navegador e nenhuma depois de salvar; `ConfirmDialog` (foco, Esc, Tab, clique no fundo, ocupado); `ProductList` com carregando, erro + tentar de novo, vazio, exclusão confirmada/cancelada/falhando e busca com debounce |
+| Backend | Jest + Supertest + mongodb-memory-server | **115** | Cada endpoint e status; cada regra de negócio nos limites (2/3/120/121 caracteres, `0`, `0.01`, `-1`, `1.5`, texto, `null`, só espaços); busca, filtros (faixa de estoque e de preço), ordenação com acento, paginação; `If-Match`/`412`; exclusão lógica e restauração; operações em lote (validação, limite de 100, grafia da categoria); JSON malformado; rota desconhecida; resumo por categoria; funções puras |
+| Frontend | Vitest + Testing Library | **73** | Esquema zod (mesmos casos da API); `ApiError` para cada tipo de falha; `ProductForm` criando e editando, erro da API no campo certo, estado de envio, descarte com confirmação no Cancelar, no voltar do navegador e nenhuma depois de salvar; `ConfirmDialog` (foco, Esc, Tab, clique no fundo, ocupado); `ProductList` com carregando, erro + tentar de novo, vazio, exclusão confirmada/cancelada/falhando, desfazer exclusão, busca com debounce, filtros de estoque e preço, tamanho da página, atalho `/` e ações em lote (seleção, excluir com desfazer, mudar categoria, exportar selecionados); `Layout` com atalho `N` e alternância de tema |
 | Contrato | Postman / Newman | **15 req. / 17 asserções** | Fluxo ponta a ponta contra a API real: criar → listar → buscar → atualizar → conflito → remover → 404 |
 
 O CI ([GitHub Actions](.github/workflows/ci.yml) e [GitLab CI](.gitlab-ci.yml)) roda as duas suítes; no frontend, também Prettier (`format:check`), ESLint e o typecheck (`tsc`, dentro do build); por fim, o build da imagem Docker.
@@ -415,8 +432,11 @@ npm run format:check  # Prettier
 
 ## 8. Além do pedido
 
-- 🔎 **Busca, filtro por categoria, "só esgotados", ordenação e paginação** — no servidor, com o estado na URL.
-- 📊 **Indicadores do catálogo**: produtos, unidades, valor em estoque e esgotados (clicável para filtrar), via `GET /categories`.
+- 🔎 **Busca, filtros por categoria, faixa de estoque (em estoque / baixo / esgotado) e faixa de preço, ordenação e paginação com itens por página configurável** — no servidor, com o estado na URL.
+- 📊 **Indicadores do catálogo**: produtos, unidades, valor em estoque, estoque baixo e esgotados (os dois últimos clicáveis para filtrar), via `GET /categories`.
+- ↩️ **Desfazer exclusão**: a exclusão é lógica no backend, e o aviso de "excluído" traz um botão **Desfazer** por alguns segundos.
+- ☑️ **Ações em lote**: seleção múltipla (inclusive a página inteira) para excluir com desfazer, mudar a categoria ou exportar só os selecionados.
+- ⌨️ **Atalhos de teclado**: <kbd>/</kbd> foca a busca e <kbd>N</kbd> abre um novo produto (ignorados enquanto se digita num campo ou com um diálogo aberto).
 - 🏷️ **Selo de estoque**: "Em estoque", "Estoque baixo" (≤ 5) e "Esgotado".
 - 🔒 **Concorrência otimista** (`ETag`/`If-Match` → `412`), com opção de recarregar ou salvar a sua versão.
 - 💰 **Campo de preço com máscara BRL** e **sugestões de categoria** (datalist com as existentes).
@@ -424,8 +444,8 @@ npm run format:check  # Prettier
 - ⚠️ **Aviso de alterações não salvas** (ao fechar a aba e ao cancelar o formulário).
 - 📚 **Swagger UI** a partir do contrato OpenAPI + **coleção Postman** com testes.
 - 🐳 **Docker** em um comando, com healthcheck, usuário não-root e seed automático.
-- 🧪 **147 testes automatizados** + contrato Newman, e **CI** para GitHub e GitLab (com lint, typecheck e formatação).
-- 🌙 **Tema escuro** automático, seguindo o sistema operacional.
+- 🧪 **188 testes automatizados** + contrato Newman, e **CI** para GitHub e GitLab (com lint, typecheck e formatação).
+- 🌙 **Tema escuro**: segue o sistema operacional por padrão e tem botão para alternar no topo; a escolha fica salva no navegador e é aplicada antes da primeira pintura (sem piscar o tema errado).
 - 🛡️ Helmet, limite de corpo (100 KB), regex de busca escapada (sem injeção de padrão), mensagens internas nunca vazam no `500`.
 - ♿ Acessibilidade e layout responsivo (tabela vira cartões no celular).
 
@@ -434,6 +454,6 @@ npm run format:check  # Prettier
 ## 9. Limitações e próximos passos
 
 - **Autenticação/autorização** não fazia parte do escopo; o caminho natural seria JWT com papéis (o mesmo padrão `auth` dos outros projetos Codex) protegendo as rotas de escrita.
-- **Exclusão definitiva** (como pedido). Em produção valeria considerar exclusão lógica para auditoria e desfazer.
+- **Exclusão lógica sem expurgo**: produtos excluídos ficam no banco indefinidamente. Em produção caberia uma rotina que apague de vez os excluídos há mais de N dias (ou um índice TTL em `deletedAt`) e, se fizer sentido, uma tela de lixeira.
 - **Busca por regex** atende bem um catálogo de milhares de itens; para volumes maiores, índice de texto ou Atlas Search.
 - **Imagens do produto** e **SKU** ficariam como próximos campos do modelo.

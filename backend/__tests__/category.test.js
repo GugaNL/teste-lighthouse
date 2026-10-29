@@ -22,10 +22,19 @@ describe('GET /categories', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual([
-      { name: 'Brinquedos', products: 1, stock: 1, inventoryValue: 39.9, outOfStock: 0 },
+      { name: 'Brinquedos', products: 1, stock: 1, inventoryValue: 39.9, outOfStock: 0, lowStock: 1 },
       // 4000×2 + 100,10×0 + 0,10×3 — sem resíduo de ponto flutuante.
-      { name: 'Informática', products: 3, stock: 5, inventoryValue: 8000.3, outOfStock: 1 },
+      { name: 'Informática', products: 3, stock: 5, inventoryValue: 8000.3, outOfStock: 1, lowStock: 2 },
     ]);
+  });
+
+  it('ignora produtos excluídos', async () => {
+    const { body: excluido } = await criar({ name: 'Notebook', category: 'Informática' });
+    await criar({ name: 'Ábaco', price: 39.9, stock: 1, category: 'Brinquedos' });
+    await request(app).delete(`/products/${excluido.id}`);
+
+    const res = await request(app).get('/categories');
+    expect(res.body.map((c) => c.name)).toEqual(['Brinquedos']);
   });
 
   it('com o catálogo vazio devolve lista vazia', async () => {

@@ -12,4 +12,6 @@ if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.sho
   };
 }
 
+window.scrollTo = () => {};
+
 afterEach(() => cleanup());

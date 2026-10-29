@@ -1,5 +1,8 @@
 import api from './api';
 import type {
+  BatchCategoryResult,
+  BatchDeleteResult,
+  BatchRestoreResult,
   CategorySummary,
   Product,
   ProductInput,
@@ -43,6 +46,26 @@ export async function updateProduct(id: string, dados: ProductInput, version?: n
 
 export async function deleteProduct(id: string): Promise<void> {
   await api.delete(`/products/${id}`);
+}
+
+export async function restoreProduct(id: string): Promise<Product> {
+  const resposta = await api.post<Product>(`/products/${id}/restore`);
+  return resposta.data;
+}
+
+export async function deleteProducts(ids: string[]): Promise<BatchDeleteResult> {
+  const resposta = await api.post<BatchDeleteResult>('/products/batch/delete', { ids });
+  return resposta.data;
+}
+
+export async function restoreProducts(ids: string[]): Promise<BatchRestoreResult> {
+  const resposta = await api.post<BatchRestoreResult>('/products/batch/restore', { ids });
+  return resposta.data;
+}
+
+export async function changeProductsCategory(ids: string[], category: string): Promise<BatchCategoryResult> {
+  const resposta = await api.post<BatchCategoryResult>('/products/batch/category', { ids, category });
+  return resposta.data;
 }
 
 export async function listCategories({ signal }: RequestOptions = {}): Promise<CategorySummary[]> {

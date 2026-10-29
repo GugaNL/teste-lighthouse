@@ -1,4 +1,5 @@
 const request = require('supertest');
+const mongoose = require('mongoose');
 const { start, stop, clear, produtoValido } = require('./helpers/testServer');
 
 let app;
@@ -240,6 +241,38 @@ describe('GET /products', () => {
     expect(disponiveis.body).toHaveLength(3);
   });
 
+  it('filtra por faixa de estoque: esgotado, baixo e ok', async () => {
+    await semear();
+    const nomes = async (stockStatus) =>
+      (await request(app).get('/products').query({ stockStatus, sort: 'name' })).body.map((p) => p.name);
+
+    expect(await nomes('out')).toEqual(['Mouse sem fio']);
+    expect(await nomes('low')).toEqual(['Ábaco de madeira']);
+    expect(await nomes('ok')).toEqual(['Cafeteira (expresso)', 'Notebook Vortex']);
+  });
+
+  it('recusa uma faixa de estoque desconhecida', async () => {
+    const res = await request(app).get('/products').query({ stockStatus: 'muito' });
+    expect(res.status).toBe(400);
+    expect(mensagemDo(res, 'stockStatus')).toMatch(/out, low, ok/);
+  });
+
+  it('filtra por faixa de preço com os limites inclusivos', async () => {
+    await semear();
+    const res = await request(app).get('/products').query({ minPrice: 249.9, maxPrice: 899, sort: 'price' });
+    expect(res.body.map((p) => p.name)).toEqual(['Mouse sem fio', 'Cafeteira (expresso)']);
+    expect(res.headers['x-total-count']).toBe('2');
+
+    const soMinimo = await request(app).get('/products').query({ minPrice: 900 });
+    expect(soMinimo.body.map((p) => p.name)).toEqual(['Notebook Vortex']);
+  });
+
+  it('recusa preço máximo menor que o mínimo', async () => {
+    const res = await request(app).get('/products').query({ minPrice: 100, maxPrice: 50 });
+    expect(res.status).toBe(400);
+    expect(mensagemDo(res, 'maxPrice')).toBe('maxPrice deve ser maior ou igual a minPrice');
+  });
+
   it('ordena por preço e por nome respeitando acentos do português', async () => {
     await semear();
     const porPreco = await request(app).get('/products').query({ sort: '-price' });
@@ -439,5 +472,57 @@ describe('DELETE /products/:id', () => {
     await request(app).delete(`/products/${a.id}`);
     const res = await request(app).get('/products');
     expect(res.body.map((p) => p.name)).toEqual(['Produto B']);
+  });
+
+  it('é exclusão lógica: o produto some da API, mas continua no banco', async () => {
+    const { body: criado } = await criar();
+    await request(app).delete(`/products/${criado.id}`);
+
+    const noBanco = await mongoose.model('Product').findById(criado.id).lean();
+    expect(noBanco.deletedAt).toBeInstanceOf(Date);
+    expect((await request(app).get('/products')).headers['x-total-count']).toBe('0');
+  });
+
+  it('produto excluído não pode ser editado', async () => {
+    const { body: criado } = await criar();
+    await request(app).delete(`/products/${criado.id}`);
+    const res = await request(app).put(`/products/${criado.id}`).send(produtoValido({ name: 'Outro nome' }));
+    expect(res.status).toBe(404);
+  });
+
+  it('categoria de produto excluído não decide a grafia de um novo', async () => {
+    const { body: antigo } = await criar({ category: 'eletrônicos' });
+    await request(app).delete(`/products/${antigo.id}`);
+    const { body: novo } = await criar({ name: 'Outro produto', category: 'Eletrônicos' });
+    expect(novo.category).toBe('Eletrônicos');
+  });
+});
+
+describe('POST /products/:id/restore', () => {
+  it('desfaz a exclusão e devolve o produto como estava', async () => {
+    const { body: criado } = await criar();
+    await request(app).delete(`/products/${criado.id}`);
+
+    const res = await request(app).post(`/products/${criado.id}/restore`);
+    expect(res.status).toBe(200);
+    expect(res.headers.etag).toBe(`"${criado.version}"`);
+    expect(res.body).toEqual(criado);
+    expect((await request(app).get(`/products/${criado.id}`)).status).toBe(200);
+  });
+
+  it('responde 404 para produto que não está excluído', async () => {
+    const { body: criado } = await criar();
+    const res = await request(app).post(`/products/${criado.id}/restore`);
+    expect(res.status).toBe(404);
+  });
+
+  it('responde 404 para um id que não existe', async () => {
+    const res = await request(app).post(`/products/${ID_INEXISTENTE}/restore`);
+    expect(res.status).toBe(404);
+  });
+
+  it('responde 400 para um id fora do formato', async () => {
+    const res = await request(app).post('/products/nao-e-id/restore');
+    expect(res.status).toBe(400);
   });
 });
