@@ -120,6 +120,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Product' }
         '400': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /products/{id}:
     parameters:
@@ -170,6 +171,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Product' }
         '400': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '404': { $ref: '#/components/responses/NotFound' }
         '412':
           description: O produto mudou desde a versão informada em `If-Match`.
@@ -192,6 +194,7 @@ paths:
         '204':
           description: Produto removido (sem corpo)
         '400': { $ref: '#/components/responses/InvalidId' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /products/{id}/restore:
@@ -214,6 +217,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Product' }
         '400': { $ref: '#/components/responses/InvalidId' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '404':
           description: O produto não existe ou não está excluído.
           content:
@@ -240,6 +244,7 @@ paths:
                 properties:
                   deleted: { type: integer, example: 3 }
         '400': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /products/batch/restore:
     post:
@@ -260,6 +265,7 @@ paths:
                 properties:
                   restored: { type: integer, example: 3 }
         '400': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /products/batch/category:
     post:
@@ -290,6 +296,7 @@ paths:
                   updated: { type: integer, example: 2 }
                   category: { type: string, example: Cozinha }
         '400': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /categories:
     get:
@@ -463,3 +470,12 @@ components:
             statusCode: 404
             error: Not Found
             message: Produto não encontrado.
+    TooManyRequests:
+      description: Limite de alterações por minuto excedido (`RATE_LIMIT_WRITES_PER_MINUTE`).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            statusCode: 429
+            error: Too Many Requests
+            message: Muitas alterações em pouco tempo. Aguarde um instante e tente de novo.

@@ -40,7 +40,7 @@ describe('ProductService com repositório injetado (sem banco)', () => {
     expect(await service.normalize(dados)).toEqual({
       name: 'Mouse sem fio',
       description: 'x',
-      price: 10,
+      priceCents: 1000,
       stock: 1,
       category: 'Casa',
     });

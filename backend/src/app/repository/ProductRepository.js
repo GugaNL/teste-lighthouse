@@ -1,6 +1,13 @@
 const ProductSchema = require('../schema/ProductSchema');
 const Repository = require('./GenericRepository');
-const { escapeRegex, toMongoSort, stockCondition, LIMITS, LOW_STOCK_THRESHOLD } = require('../rules/product');
+const {
+  escapeRegex,
+  toMongoSort,
+  stockCondition,
+  toCents,
+  LIMITS,
+  LOW_STOCK_THRESHOLD,
+} = require('../rules/product');
 
 const { COLLATION } = ProductSchema;
 
@@ -24,9 +31,9 @@ class ProductRepository extends Repository {
     if (inStock === false) query.stock = 0;
     if (stockStatus) query.stock = stockCondition(stockStatus);
     if (minPrice !== undefined || maxPrice !== undefined) {
-      query.price = {};
-      if (minPrice !== undefined) query.price.$gte = minPrice;
-      if (maxPrice !== undefined) query.price.$lte = maxPrice;
+      query.priceCents = {};
+      if (minPrice !== undefined) query.priceCents.$gte = toCents(minPrice);
+      if (maxPrice !== undefined) query.priceCents.$lte = toCents(maxPrice);
     }
 
     return query;
@@ -125,6 +132,17 @@ class ProductRepository extends Repository {
     return modifiedCount;
   }
 
+  async migratePriceToCents() {
+    const { modifiedCount } = await ProductSchema.collection.updateMany(
+      { priceCents: { $exists: false }, price: { $type: 'number' } },
+      [
+        { $set: { priceCents: { $toLong: { $round: [{ $multiply: ['$price', 100] }, 0] } } } },
+        { $unset: 'price' },
+      ]
+    );
+    return modifiedCount;
+  }
+
   async categorySummary() {
     return ProductSchema.aggregate([
       { $match: ATIVO },
@@ -133,7 +151,7 @@ class ProductRepository extends Repository {
           _id: '$category',
           products: { $sum: 1 },
           stock: { $sum: '$stock' },
-          inventoryValue: { $sum: { $multiply: ['$price', '$stock'] } },
+          inventoryValueCents: { $sum: { $multiply: ['$priceCents', '$stock'] } },
           outOfStock: { $sum: { $cond: [{ $eq: ['$stock', 0] }, 1, 0] } },
           lowStock: {
             $sum: {

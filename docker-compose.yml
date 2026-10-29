@@ -9,7 +9,7 @@ services:
       - PORT=4008
       - NODE_ENV=production
       - MONGO_URL=mongodb://mongo:27017/catalogo-produtos
-      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - CORS_ORIGIN=${CORS_ORIGIN:-}
       # Cria o catálogo de demonstração na primeira subida (só se estiver vazio).
       - SEED_ON_START=${SEED_ON_START:-true}
     depends_on:

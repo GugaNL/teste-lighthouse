@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const config = require('../../../app/config/config');
+const logger = require('../../../app/helpers/logger');
 
 const ESPERA_ENTRE_TENTATIVAS_MS = 3000;
 
@@ -8,13 +9,11 @@ class Database {
     mongoose.set('strictQuery', true);
     return mongoose
       .connect(config.mongoUrl, { serverSelectionTimeoutMS: 5000 })
-      .then(() => {
-        if (config.nodeEnv !== 'test') console.log('[db] MongoDB conectado');
-      })
+      .then(() => logger.info('MongoDB conectado'))
       .catch((error) => {
-        console.error('[db] Falha ao conectar no MongoDB:', error.message);
+        logger.error({ err: error }, 'Falha ao conectar no MongoDB');
         if (config.nodeEnv === 'test') throw error;
-        console.error(`[db] Nova tentativa em ${ESPERA_ENTRE_TENTATIVAS_MS / 1000}s…`);
+        logger.warn(`Nova tentativa de conexão em ${ESPERA_ENTRE_TENTATIVAS_MS / 1000}s`);
         return new Promise((resolve) => {
           setTimeout(() => resolve(this.connect()), ESPERA_ENTRE_TENTATIVAS_MS);
         });

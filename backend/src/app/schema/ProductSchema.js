@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { LIMITS, hasAtMostTwoDecimals } = require('../rules/product');
+const { LIMITS, toCents } = require('../rules/product');
 
 const ProductSchema = new mongoose.Schema(
   {
@@ -11,14 +11,12 @@ const ProductSchema = new mongoose.Schema(
       maxlength: LIMITS.name.max,
     },
     description: { type: String, trim: true, default: '', maxlength: LIMITS.description.max },
-    price: {
+    priceCents: {
       type: Number,
       required: true,
-      max: LIMITS.price.max,
-      validate: {
-        validator: (valor) => valor > 0 && hasAtMostTwoDecimals(valor),
-        message: 'price deve ser maior que zero e ter no máximo 2 casas decimais',
-      },
+      min: 1,
+      max: toCents(LIMITS.price.max),
+      validate: { validator: Number.isInteger, message: 'priceCents deve ser inteiro' },
     },
     stock: {
       type: Number,
@@ -44,9 +42,9 @@ const ProductSchema = new mongoose.Schema(
 
 const COLLATION = { locale: 'pt', strength: 2 };
 
-ProductSchema.index({ category: 1 }, { collation: COLLATION });
-ProductSchema.index({ createdAt: -1, _id: -1 });
-ProductSchema.index({ deletedAt: 1 });
+ProductSchema.index({ deletedAt: 1, createdAt: -1, _id: -1 });
+ProductSchema.index({ deletedAt: 1, category: 1 }, { collation: COLLATION });
+ProductSchema.index({ deletedAt: 1, priceCents: 1 });
 
 module.exports = mongoose.model('Product', ProductSchema);
 module.exports.COLLATION = COLLATION;

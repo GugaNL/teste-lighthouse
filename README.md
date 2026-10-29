@@ -126,8 +126,12 @@ npm --prefix frontend run dev
 | `PORT` | `4008` | Porta HTTP da API |
 | `NODE_ENV` | `development` | `development`, `production` ou `test` |
 | `MONGO_URL` | `mongodb://127.0.0.1:27022/catalogo-produtos` | Conexão do MongoDB. **Obrigatória em produção** (a API não sobe sem ela) |
-| `CORS_ORIGIN` | `*` | Origens liberadas, separadas por vírgula. Só importa com o frontend em outro domínio |
+| `CORS_ORIGIN` | `*` em dev; vazio em produção | Origens liberadas, separadas por vírgula, ou `*`. Vazio = sem CORS (o site é servido pela própria API). Só importa com o frontend em outro domínio |
 | `SEED_ON_START` | `true` | Cria o catálogo de demonstração na subida **se a coleção estiver vazia** (nunca apaga nada) |
+| `RATE_LIMIT_WRITES_PER_MINUTE` | `120` | Escritas (`POST`/`PUT`/`DELETE`) aceitas por minuto e por IP; acima disso, `429`. `0` desliga |
+| `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace` ou `silent` |
+
+As variáveis são **validadas na subida** (Joi): um valor inválido (porta que não é número, `MONGO_URL` sem `mongodb://`…) impede a API de subir, com uma mensagem dizendo qual variável corrigir.
 
 ### Frontend — [`frontend/.env.example`](frontend/.env.example)
 
@@ -141,7 +145,7 @@ npm --prefix frontend run dev
 | Variável | Padrão | Descrição |
 | :--- | :--- | :--- |
 | `APP_PORT` | `4008` | Porta do host onde a aplicação fica exposta |
-| `CORS_ORIGIN` | `*` | Repassada para a API |
+| `CORS_ORIGIN` | *(vazio)* | Repassada para a API; vazio = sem CORS, já que o site e a API ficam no mesmo domínio |
 | `SEED_ON_START` | `true` | Repassada para a API |
 
 ---
@@ -253,6 +257,7 @@ Todo erro tem o mesmo corpo, com mensagens em português prontas para a tela:
 | `404` | Produto inexistente, ou rota desconhecida da API |
 | `412` | `If-Match` com versão desatualizada |
 | `413` | Corpo maior que 100 KB |
+| `429` | Limite de escritas por minuto excedido (`RATE_LIMIT_WRITES_PER_MINUTE`) |
 | `503` | `/health` sem conexão com o MongoDB (o healthcheck do Docker acusa) |
 | `500` | Erro inesperado |
 
@@ -327,13 +332,22 @@ Quando a API recusa algo que passou no cliente, o formulário mostra a mensagem 
 ### Decisões de domínio
 
 - **`PUT` é substituição completa** — por isso o mesmo esquema Joi serve para criar e atualizar, e o **mesmo formulário** serve para as duas telas.
-- **Dinheiro com no máximo 2 casas decimais.** `10.999` é recusado. No frontend, o campo de preço é estilo "caixa eletrônico" (dígitos entram pelos centavos: `1999` → `R$ 19,99`), evitando os problemas de vírgula/ponto e notação científica do `<input type="number">`.
+- **Dinheiro com no máximo 2 casas decimais, guardado em centavos.** `10.999` é recusado. No banco o preço é um inteiro (`priceCents`), então somas como o valor em estoque não acumulam erro de ponto flutuante; a API continua recebendo e devolvendo `price` em reais. Bancos com o formato antigo (`price` em reais) são convertidos automaticamente na subida. No frontend, o campo de preço é estilo "caixa eletrônico" (dígitos entram pelos centavos: `1999` → `R$ 19,99`), evitando os problemas de vírgula/ponto e notação científica do `<input type="number">`.
 - **Categoria é texto livre, mas não fragmenta**: se "Eletrônicos" já existe, criar com "ELETRÔNICOS" reaproveita a grafia existente. Na edição, o próprio produto fica fora dessa busca para poder corrigir a capitalização de uma categoria que só ele usa.
 - **Espaços normalizados**: `"  Mouse   sem fio "` vira `"Mouse sem fio"`; o mínimo de 3 caracteres conta sem os espaços das pontas.
 - **ID inválido é `400`, ID inexistente é `404`.** Um ID fora do formato nunca vai existir, e responder antes de ir ao banco evita expor um `CastError`.
 - **Concorrência otimista** com versão própria (o `__v` do Mongoose só incrementa quando um array muda). Checagem e escrita são **uma operação atômica** (`findOneAndUpdate` filtrando pela versão).
 - **Rotas exatamente como no enunciado** (`/products`); as rotas do site ficam em português (`/produtos/novo`) para o mesmo servidor entregar API e SPA sem colisão. Uma sub-rota desconhecida da API responde `404` em JSON, nunca o HTML do site.
 - **Corpo de erro** `{ statusCode, error, message, details }`. Sem `name` na raiz: `name` é campo do produto, e repetir a chave no erro confundiria quem consome a API.
+
+### Segurança e operação
+
+- **CSP ligada** (Helmet): scripts só do próprio domínio; o único script inline do site (o que aplica o tema antes da primeira pintura) é liberado pelo **hash**, calculado na subida a partir do `index.html` do build.
+- **CORS fechado por padrão em produção**: o site é servido pela própria API, então não precisa de CORS; `CORS_ORIGIN` libera origens quando o frontend fica em outro domínio.
+- **Limite de escritas** por IP (`express-rate-limit`), com os cabeçalhos `RateLimit` padrão; leituras não são limitadas.
+- **Logs estruturados** com pino: JSON em produção, uma linha legível em desenvolvimento. Cada requisição ganha um `X-Request-Id` (ou reaproveita o recebido), que aparece no log e na resposta.
+- **Índices compostos** começando por `deletedAt`, para as consultas de produtos ativos ordenadas por data, por categoria e por preço.
+- **Health check** responde `503` sem banco (o healthcheck do Docker acusa) e o servidor **encerra graciosamente** no `SIGTERM`.
 
 ### Frontend
 
@@ -385,7 +399,7 @@ A fronteira é o `export`: quem importa um módulo lê uma API em inglês, como 
 │           ├── rules/                # funções puras do domínio
 │           ├── serialize/            # formato público do produto e dos erros
 │           ├── errors/               # HttpError e subclasses (400, 404, 412, 413)
-│           └── helpers/              # log de requisições e respondWithError
+│           └── helpers/              # logger (pino), log de requisições e respondWithError
 ├── frontend/
 │   ├── eslint.config.js              # typescript-eslint + react-hooks + jsx-a11y + Prettier
 │   ├── tsconfig.json                 # app e testes (tsconfig.node.json: vite.config.ts)
@@ -423,7 +437,7 @@ npm run test:api    # coleção Postman contra a API no ar (npm run dev antes)
 
 | Suíte | Ferramentas | Quantidade | Cobre |
 | :--- | :--- | :---: | :--- |
-| Backend | Jest + Supertest + mongodb-memory-server | **118** | Cada endpoint e status; cada regra de negócio nos limites (2/3/120/121 caracteres, `0`, `0.01`, `-1`, `1.5`, texto, `null`, só espaços); busca, filtros (faixa de estoque e de preço), ordenação com acento, paginação; `If-Match`/`412`; exclusão lógica e restauração (inclusive a grafia da categoria); operações em lote (validação, limite de 100, grafia da categoria); JSON malformado; rota desconhecida; health com `503`; resumo por categoria; funções puras |
+| Backend | Jest + Supertest + mongodb-memory-server | **133** | Cada endpoint e status; cada regra de negócio nos limites (2/3/120/121 caracteres, `0`, `0.01`, `-1`, `1.5`, texto, `null`, só espaços); busca, filtros (faixa de estoque e de preço), ordenação com acento, paginação; `If-Match`/`412`; exclusão lógica e restauração (inclusive a grafia da categoria); operações em lote (validação, limite de 100, grafia da categoria); JSON malformado; rota desconhecida; health com `503`; preço em centavos e migração do formato antigo; configuração validada; CSP, `X-Request-Id` e limite de escritas (`429`); service com repositório falso; resumo por categoria; funções puras |
 | Frontend | Vitest + Testing Library | **73** | Esquema zod (mesmos casos da API); `ApiError` para cada tipo de falha; `ProductForm` criando e editando, erro da API no campo certo, estado de envio, descarte com confirmação no Cancelar, no voltar do navegador e nenhuma depois de salvar; `ConfirmDialog` (foco, Esc, Tab, clique no fundo, ocupado); `ProductList` com carregando, erro + tentar de novo, vazio, exclusão confirmada/cancelada/falhando, desfazer exclusão, busca com debounce, filtros de estoque e preço, tamanho da página, atalho `/` e ações em lote (seleção, excluir com desfazer, mudar categoria, exportar selecionados); `Layout` com atalho `N` e alternância de tema |
 | Contrato | Postman / Newman | **15 req. / 17 asserções** | Fluxo ponta a ponta contra a API real: criar → listar → buscar → atualizar → conflito → remover → 404 |
 
@@ -452,9 +466,10 @@ npm run format:check  # Prettier
 - ⚠️ **Aviso de alterações não salvas** em qualquer saída do formulário (Cancelar, "← Voltar", links do topo, botão voltar do navegador) e ao fechar a aba.
 - 📚 **Swagger UI** a partir do contrato OpenAPI + **coleção Postman** com testes.
 - 🐳 **Docker** em um comando, com healthcheck (que acusa o banco fora do ar), usuário não-root, seed automático e encerramento gracioso no `SIGTERM`.
-- 🧪 **191 testes automatizados** + contrato Newman, e **CI** para GitHub e GitLab (com lint, typecheck e formatação).
+- 🧪 **206 testes automatizados** + contrato Newman, e **CI** para GitHub e GitLab (com lint, typecheck e formatação).
 - 🌙 **Tema escuro**: segue o sistema operacional por padrão e tem botão para alternar no topo; a escolha fica salva no navegador e é aplicada antes da primeira pintura (sem piscar o tema errado).
-- 🛡️ Helmet, limite de corpo (100 KB), regex de busca escapada (sem injeção de padrão), mensagens internas nunca vazam no `500`.
+- 🛡️ CSP com hash do script inline, CORS fechado em produção, limite de escritas por minuto, limite de corpo (100 KB), regex de busca escapada (sem injeção de padrão), configuração validada na subida e mensagens internas que nunca vazam no `500`.
+- 📜 Logs estruturados (pino) com `X-Request-Id` por requisição.
 - ♿ Acessibilidade e layout responsivo (tabela vira cartões no celular).
 
 ---
@@ -463,5 +478,7 @@ npm run format:check  # Prettier
 
 - **Autenticação/autorização** não fazia parte do escopo; o caminho natural seria JWT com papéis protegendo as rotas de escrita.
 - **Exclusão lógica sem expurgo**: produtos excluídos ficam no banco indefinidamente. Em produção caberia uma rotina que apague de vez os excluídos há mais de N dias (ou um índice TTL em `deletedAt`) e, se fizer sentido, uma tela de lixeira.
+- **`GET /products` sem paginação devolve o catálogo inteiro**, como pede o desafio. Em produção caberia um teto ou paginação obrigatória (e streaming na exportação CSV).
+- **Limite de escritas em memória**: conta por processo; com várias instâncias, o contador iria para um armazenamento compartilhado (Redis). Atrás de proxy reverso, seria preciso configurar o `trust proxy` do Express para ler o IP real.
 - **Busca por regex** atende bem um catálogo de milhares de itens; para volumes maiores, índice de texto ou Atlas Search.
 - **Imagens do produto** e **SKU** ficariam como próximos campos do modelo.

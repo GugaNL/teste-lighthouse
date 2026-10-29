@@ -3,6 +3,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
 const fs = require('fs');
+const { createHash } = require('crypto');
+const { rateLimit } = require('express-rate-limit');
 const mongoose = require('mongoose');
 const config = require('./app/config/config');
 const router = require('./routes');
@@ -10,6 +12,7 @@ const requestLogger = require('./app/helpers/requestLogger');
 const BadRequest = require('./app/errors/BadRequest');
 const PayloadTooLarge = require('./app/errors/PayloadTooLarge');
 const RouteNotFound = require('./app/errors/RouteNotFound');
+const TooManyRequests = require('./app/errors/TooManyRequests');
 const { respondWithError } = require('./app/helpers/respondWithError');
 
 const FRONTEND_DIR =
@@ -18,10 +21,26 @@ const FRONTEND_DIR =
 const API_PREFIXES = ['/products', '/categories', '/docs', '/health'];
 const MONGO_CONECTADO = 1;
 const LIMITE_DO_CORPO = '100kb';
+const METODOS_DE_LEITURA = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+const hashesDosScriptsInline = (html) =>
+  [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(
+    ([, codigo]) => `'sha256-${createHash('sha256').update(codigo).digest('base64')}'`
+  );
+
+const origensDoCors = (valor) => {
+  if (valor === '*') return '*';
+  return valor
+    .split(',')
+    .map((origem) => origem.trim())
+    .filter(Boolean);
+};
 
 class App {
   constructor() {
-    this.temFrontend = fs.existsSync(path.join(FRONTEND_DIR, 'index.html'));
+    const indexHtml = path.join(FRONTEND_DIR, 'index.html');
+    this.temFrontend = fs.existsSync(indexHtml);
+    this.scriptsInline = this.temFrontend ? hashesDosScriptsInline(fs.readFileSync(indexHtml, 'utf8')) : [];
     this.server = express();
     this.middlewares();
     this.health();
@@ -32,15 +51,52 @@ class App {
   }
 
   middlewares() {
-    this.server.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false }));
+    this.server.use(requestLogger);
     this.server.use(
-      cors({
-        origin: config.corsOrigin === '*' ? '*' : config.corsOrigin.split(',').map((o) => o.trim()),
-        exposedHeaders: ['X-Total-Count', 'ETag', 'Location'],
+      helmet({
+        crossOriginResourcePolicy: false,
+        contentSecurityPolicy: {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", ...this.scriptsInline],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", 'data:'],
+            fontSrc: ["'self'", 'data:'],
+            connectSrc: ["'self'"],
+            objectSrc: ["'none'"],
+            baseUri: ["'self'"],
+            formAction: ["'self'"],
+            frameAncestors: ["'self'"],
+            upgradeInsecureRequests: null,
+          },
+        },
       })
     );
+
+    const origens = origensDoCors(config.corsOrigin);
+    if (origens.length) {
+      this.server.use(
+        cors({
+          origin: origens,
+          exposedHeaders: ['X-Total-Count', 'ETag', 'Location', 'X-Request-Id'],
+        })
+      );
+    }
+
+    if (config.rateLimitWritesPerMinute > 0) {
+      this.server.use(
+        rateLimit({
+          windowMs: 60_000,
+          limit: config.rateLimitWritesPerMinute,
+          standardHeaders: 'draft-7',
+          legacyHeaders: false,
+          skip: (req) => METODOS_DE_LEITURA.has(req.method),
+          handler: (req, res) => respondWithError(res, new TooManyRequests()),
+        })
+      );
+    }
+
     this.server.use(express.json({ limit: LIMITE_DO_CORPO }));
-    if (config.nodeEnv !== 'test') this.server.use(requestLogger);
   }
 
   health() {

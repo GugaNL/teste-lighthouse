@@ -4,12 +4,12 @@ let mongod;
 let app;
 let mongoose;
 
-async function start() {
+async function start({ frontendDir = '/nao-existe' } = {}) {
   mongod = await MongoMemoryServer.create();
 
   process.env.NODE_ENV = 'test';
   process.env.MONGO_URL = mongod.getUri('catalogo-produtos-test');
-  process.env.FRONTEND_DIR = '/nao-existe';
+  process.env.FRONTEND_DIR = frontendDir;
 
   app = require('../../src/app');
   mongoose = require('mongoose');

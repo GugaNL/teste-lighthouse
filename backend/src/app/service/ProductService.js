@@ -2,7 +2,7 @@ const { productRepository } = require('../repository/ProductRepository');
 const NotFound = require('../errors/NotFound');
 const BadRequest = require('../errors/BadRequest');
 const PreconditionFailed = require('../errors/PreconditionFailed');
-const { normalizeText, roundMoney } = require('../rules/product');
+const { normalizeText, toCents, fromCents } = require('../rules/product');
 
 const RECURSO = 'Produto';
 
@@ -97,7 +97,7 @@ class ProductService {
       name: g._id,
       products: g.products,
       stock: g.stock,
-      inventoryValue: roundMoney(g.inventoryValue),
+      inventoryValue: fromCents(g.inventoryValueCents),
       outOfStock: g.outOfStock,
       lowStock: g.lowStock,
     }));
@@ -110,7 +110,7 @@ class ProductService {
     return {
       name: normalizeText(dados.name),
       description: (dados.description || '').trim(),
-      price: dados.price,
+      priceCents: toCents(dados.price),
       stock: dados.stock,
       category: grafiaExistente || category,
     };

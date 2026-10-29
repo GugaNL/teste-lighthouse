@@ -4,7 +4,8 @@ const {
   escapeRegex,
   toMongoSort,
   parseIfMatch,
-  roundMoney,
+  toCents,
+  fromCents,
 } = require('../src/app/rules/product');
 
 describe('regras puras do produto', () => {
@@ -27,7 +28,7 @@ describe('regras puras do produto', () => {
   });
 
   it('toMongoSort traduz a opção e desempata pelo _id', () => {
-    expect(toMongoSort('-price')).toEqual({ price: -1, _id: -1 });
+    expect(toMongoSort('-price')).toEqual({ priceCents: -1, _id: -1 });
     expect(toMongoSort('name')).toEqual({ name: 1, _id: 1 });
     expect(toMongoSort('qualquer')).toEqual({ createdAt: -1, _id: -1 });
   });
@@ -46,7 +47,10 @@ describe('regras puras do produto', () => {
     expect(parseIfMatch('abc')).toBeNaN();
   });
 
-  it('roundMoney arredonda em centavos', () => {
-    expect(roundMoney(0.1 + 0.2)).toBe(0.3);
+  it('toCents e fromCents convertem sem resíduo de ponto flutuante', () => {
+    expect(toCents(0.07)).toBe(7);
+    expect(toCents(0.1 + 0.2)).toBe(30);
+    expect(toCents(999_999_999.99)).toBe(99_999_999_999);
+    expect(fromCents(34990)).toBe(349.9);
   });
 });

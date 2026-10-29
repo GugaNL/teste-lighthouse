@@ -32,11 +32,13 @@ const hasAtMostTwoDecimals = (valor) =>
 
 const escapeRegex = (texto) => texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+const CAMPO_NO_BANCO = { price: 'priceCents' };
+
 const toMongoSort = (sort = DEFAULT_SORT) => {
   const opcao = SORT_OPTIONS.includes(sort) ? sort : DEFAULT_SORT;
   const desc = opcao.startsWith('-');
   const campo = desc ? opcao.slice(1) : opcao;
-  return { [campo]: desc ? -1 : 1, _id: desc ? -1 : 1 };
+  return { [CAMPO_NO_BANCO[campo] ?? campo]: desc ? -1 : 1, _id: desc ? -1 : 1 };
 };
 
 const parseIfMatch = (cabecalho) => {
@@ -49,7 +51,9 @@ const parseIfMatch = (cabecalho) => {
 
 const etagOf = (version) => `"${version}"`;
 
-const roundMoney = (valor) => Math.round(valor * 100) / 100;
+const toCents = (valor) => Math.round(valor * 100);
+
+const fromCents = (centavos) => centavos / 100;
 
 module.exports = {
   LIMITS,
@@ -64,5 +68,6 @@ module.exports = {
   toMongoSort,
   parseIfMatch,
   etagOf,
-  roundMoney,
+  toCents,
+  fromCents,
 };

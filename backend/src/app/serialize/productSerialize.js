@@ -1,3 +1,5 @@
+const { fromCents } = require('../rules/product');
+
 const serialize = (produto) => {
   if (!produto) return produto;
 
@@ -5,7 +7,7 @@ const serialize = (produto) => {
     id: String(produto._id),
     name: produto.name,
     description: produto.description || '',
-    price: produto.price,
+    price: fromCents(produto.priceCents),
     stock: produto.stock,
     category: produto.category,
     inStock: produto.stock > 0,
